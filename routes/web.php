@@ -33,6 +33,16 @@ $router->get('/', function () use ($router){
 //     return 'Maaf umur anda belum mencukupi untuk mengakses halaman ini';
 // });
 
+//Auth
+Route::group(['prefix' => 'auth'], function () use ($router) 
+{
+   Route::post('register','AuthController@register');
+   Route::post('login', 'AuthController@login');
+   Route::get('logout', 'AuthController@logout');
+});
+
+
+// Menu Dashboard
 Route::group(['prefix' => 'menu' ,'middleware' => ['auth','role']], function () use ($router){
     Route::get('/','SidebarController@index');
     Route::get('/{id}','SidebarController@show');
@@ -41,22 +51,25 @@ Route::group(['prefix' => 'menu' ,'middleware' => ['auth','role']], function () 
     Route::post('/{id}', 'SidebarController@destroy');
 });
 
-// Route::group([
+//Delivery Address
+Route::group(['prefix' => 'delivery-address'], function () {
+    Route::get('/','DeliveryAddressController@index');
+    Route::get('/{id}','DeliveryAddressController@show');
+    Route::post('/','DeliveryAddressController@store');
+    Route::post('/update','DeliveryAddressController@update');
+    Route::post('/{id}','DeliveryAddressController@destroy');
 
-//     'prefix' => 'auth'
-
-// ], function ($router) {
-
-//     Route::post('login', 'AuthController@login');
-//     Route::post('logout', 'AuthController@logout');
-//     Route::post('refresh', 'AuthController@refresh');
-//     Route::post('me', 'AuthController@me');
-
-// });
-
-$router->group(['prefix' => 'auth'], function () use ($router) 
-{
-   $router->post('register', 'AuthController@register');
-   $router->post('login', 'AuthController@login');
-   $router->get('logout', 'AuthController@logout');
 });
+
+
+//Order
+Route::group(['prefix' => 'order'], function () {
+    Route::get('/','OrderController@index');
+    // Route::get('/{id}','OrderController@show');
+    // Route::post('/','OrderController@store');
+    // Route::post('/update','OrderController@update');
+    // Route::post('/{id}','OrderController@destroy');
+});
+
+
+

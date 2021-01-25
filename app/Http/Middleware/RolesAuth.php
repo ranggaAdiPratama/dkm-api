@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use App\Models\Role;
-use App\Models\Permission;
+use App\Models\Permissions;
 class RolesAuth
 {
     /**
@@ -19,13 +19,10 @@ class RolesAuth
         // Pre-Middleware Action
 
         $response = $next($request);
-
-        // Post-Middleware Action
+        
         // get user role permissions
         $role = Role::findOrFail(auth()->user()->role_id);
         $permissions = $role->permissions;
-        print_r($role);
-        exit();  
         // get requested action
         $actionName = $request->path();
         
@@ -34,8 +31,8 @@ class RolesAuth
     {
         foreach ($permissions as $permission)
         {
-        $name = $permission->name; 
-        if ($actionName == $name )
+        $name = $permission->name;
+        if ($request->is($name.'/*') )
         {
         // authorized request
         return $next($request);
