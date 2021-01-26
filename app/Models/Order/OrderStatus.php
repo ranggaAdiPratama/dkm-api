@@ -11,6 +11,6 @@ class OrderStatus extends Model
 
     public function Order()
     {
-        return $this->belongsTo(Order::class);
+        return $this->hasOne('app\Models\Order\Order');
     }
 }

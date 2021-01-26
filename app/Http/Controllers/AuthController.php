@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\UserProfile;
 
 class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login']]);
+        $this->middleware('auth:api', ['except' => ['login','register']]);
     }
 
     /**
@@ -26,7 +27,9 @@ class AuthController extends Controller
             'name'  => 'required|string',
             'email' => 'required|email|unique:users',
             'password' => 'required|confirmed',
-            'role_id' =>'required'
+            'role_id' =>'required',
+            'phone' => 'required',
+            'address' => 'required',
         ]);
 
         try 
@@ -37,6 +40,15 @@ class AuthController extends Controller
             $user->role_id= $request->input('role_id');
             $user->password = app('hash')->make($request->input('password'));
             $user->save();
+
+            if($user->id !== null){
+                $profile = new UserProfile;
+                $profile->user_id = $user->id;
+                $profile->phone = $request->input('phone');
+                $profile->address = $request->input('address');
+                $profile->photo = $request->input('photo');
+                $profile->save();
+            }
 
             return response()->json( [
                         'entity' => 'Users Created Successfully', 

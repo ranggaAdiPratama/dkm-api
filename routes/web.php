@@ -58,14 +58,13 @@ Route::group(['prefix' => 'delivery-address'], function () {
     Route::post('/','DeliveryAddressController@store');
     Route::post('/update','DeliveryAddressController@update');
     Route::post('/{id}','DeliveryAddressController@destroy');
-
 });
 
 
 //Order
 Route::group(['prefix' => 'order'], function () {
     Route::get('/','OrderController@index');
-    // Route::get('/{id}','OrderController@show');
+    Route::get('/{id}','OrderController@show');
     // Route::post('/','OrderController@store');
     // Route::post('/update','OrderController@update');
     // Route::post('/{id}','OrderController@destroy');

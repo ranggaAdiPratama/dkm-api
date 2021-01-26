@@ -10,6 +10,6 @@ class Order extends Model
 
     public function orderStatus()
     {
-        return $this->belongsToMany(OrderStatus::class);
+        return $this->belongsTo('App\Models\Order\OrderStatus','order_statuses_id');
     }
 }
