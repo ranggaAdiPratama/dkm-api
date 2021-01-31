@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Exceptions\Handler;
 use App\Models\Order\Order;
 use DB;
 
@@ -15,7 +16,7 @@ class OrderController extends Controller
      */
     public function index()
     {
-      $data['order'] = DB::select('
+      $data = DB::select('
                         SELECT 
                         orders.id, 
                         orders.user_id, 
@@ -107,5 +108,295 @@ class OrderController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+
+    public function pickupList()
+    {
+        $id  = auth()->user()->id;
+        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'orders.created_at',
+                            'order_details.price'
+                            )
+                        ->where('orders.pickup_status',0)
+                        ->where('orders.order_statuses_id','<',3)
+                        ->where('orders.driver_id',$id)
+                        ->get();
+        $data = array();
+        if (!empty($getData)){
+            foreach ($getData as $key=>$val) {
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#'.'000'.$val->no_order,
+                    'tanggal_order' => date_format($val->created_at,"d-M-Y"),
+                );
+
+                array_push($data,$arr);
+            }
+        }
+
+        return response()->json($data, 200);
+    }
+
+    public function pickupShow($id)
+    {
+        $detail_barang = Order::join('order_details as od','orders.order_detail_id','od.id')
+                        ->join('order_statuses as os' ,'orders.order_statuses_id', 'os.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'os.status',
+                            'orders.created_at',
+                            'od.name',
+                            'od.weight',
+                            'od.volume',
+                            'od.price',
+                            'od.photo'
+                        )
+                        ->where('orders.id',$id)
+                        ->get();
+        
+        $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
+                                ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
+                                ->select(
+                                    'od.receiver',
+                                    'od.phone',
+                                    'da.address'
+                                )
+                                ->where('orders.id',$id)
+                                ->get();
+        
+        $getData = Order:: join('payments as p','orders.payment_id','p.id')
+                                    ->join('order_details as od','orders.order_detail_id','od.id')
+                                    ->join('payment_methods as pm' ,'p.payment_method_id','pm.id')
+                                    ->join('payment_status as ps','p.status','ps.id')
+                                    ->select(
+                                        'pm.method',
+                                        'orders.delivery_fee',
+                                        'od.price',
+                                        'orders.tax'
+                                    )
+                                    ->where('orders.id',$id)
+                                    ->get();
+        if(!empty($getData) && count($getData) > 0){
+           $detail_total_order = array(
+               'payment_method' => $getData[0]->method,
+               'delivery_fee' => $getData[0]->delivery_fee,
+               'price' =>$getData[0]->price,
+               'tax' =>$getData[0]->tax,
+               'total' => $getData[0]->delivery_fee + $getData[0]->price + $getData[0]->tax
+
+           );
+        }else{
+            return response()->json('Data Not Found', 404);
+        }
+    
+        
+        $data = array(
+            'detail_barang' => $detail_barang[0],
+            'detail_penerima' => $detail_penerima[0],
+            'detail_total_order' => $detail_total_order
+        );
+        return response()->json($data, 200);
+
+    }
+
+    public function pickupDone($id)
+    {   
+      $order = Order::find($id);
+      date_default_timezone_set('Asia/Bangkok');
+       if($order){
+           Order::where('id',$id)
+                ->update([
+                'pickup_status' => 1,
+                'pickup_at' => date('Y-m-d H:i:s')
+
+                ]);
+
+            return response()->json('Data Successfully updated', 200);
+       }
+       
+       return response()->json('Data fail to update');
+    }
+
+    public function pickupHistory()
+    {
+        $id  = auth()->user()->id;
+        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'orders.updated_at'
+                            )
+                        ->where('orders.pickup_status',1)
+                        ->where('orders.driver_id',$id)
+                        ->get();
+        $data = array();
+        if (!empty($getData)){
+            foreach ($getData as $key=>$val) {
+                $date = date_create($val->pickup_at);
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#'.'000'.$val->no_order,
+                    'tanggal_pickup' => date_format($date,"d-M-Y"),
+                );
+
+                array_push($data,$arr);
+            }
+            return response()->json($data, 200); 
+        }
+        return response()->json('History Pickup Tidak ditemukan', 404);
+        
+    }
+
+
+    public function deliveryList()
+    {
+        $id  = auth()->user()->id;
+        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'orders.pickup_at'
+                            )
+                        ->where('orders.pickup_status',1)
+                        ->where('orders.order_statuses_id','<',3)
+                        ->where('orders.driver_id',$id)
+                        ->get();
+        $data = array();
+        if (!empty($getData)){
+            foreach ($getData as $key=>$val) {
+                $date = date_create($val->pickup_at);
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#'.'000'.$val->no_order,
+                    'tanggal_pickup' => date_format($date, 'd-M-Y'),
+                );
+
+                array_push($data,$arr);
+            }
+            return response()->json($data, 200); 
+        }
+        return response()->json('Data Not Found', 404);
+    }
+
+    public function deliveryHistory()
+    {
+        $id  = auth()->user()->id;
+        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'orders.delivered_at'
+                            )
+                        ->where('orders.pickup_status',1)
+                        ->where('orders.order_statuses_id','=',3)
+                        
+                        ->where('orders.driver_id',$id)
+                        ->get();
+
+        $data = array();
+        if (!empty($getData)){
+            foreach ($getData as $val) {
+                $date = date_create($val->delivered_at);
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#'.'000'.$val->no_order,
+                    'tanggal_deliver' => date_format($date , "d-M-Y H:i:s")
+                );
+
+                
+                array_push($data,$arr);
+            }
+            return response()->json($data, 200); 
+        }
+        return response()->json('Data Not Found', 404);
+    }
+
+    public function deliveryShow($id)
+    {
+        $detail_barang = Order::join('order_details as od','orders.order_detail_id','od.id')
+                        ->join('order_statuses as os' ,'orders.order_statuses_id', 'os.id')
+                        ->select(
+                            'orders.id',
+                            'orders.no_order',
+                            'os.status',
+                            'orders.created_at',
+                            'od.name',
+                            'od.weight',
+                            'od.volume',
+                            'od.price',
+                            'od.photo'
+                        )
+                        ->where('orders.id',$id)
+                        ->where('orders.pickup_status',1)
+                        ->get();
+        
+        $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
+                                ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
+                                ->select(
+                                    'od.receiver',
+                                    'od.phone',
+                                    'da.address'
+                                )
+                                ->where('orders.id',$id)
+                                ->where('orders.pickup_status',1)
+                                ->get();
+        
+        $getData = Order:: join('payments as p','orders.payment_id','p.id')
+                                    ->join('order_details as od','orders.order_detail_id','od.id')
+                                    ->join('payment_methods as pm' ,'p.payment_method_id','pm.id')
+                                    ->join('payment_status as ps','p.status','ps.id')
+                                    ->select(
+                                        'pm.method',
+                                        'orders.delivery_fee',
+                                        'od.price',
+                                        'orders.tax'
+                                    )
+                                    ->where('orders.id',$id)
+                                    ->where('orders.pickup_status',1)
+                                    ->get();
+        if(!empty($getData) && count($getData) > 0){
+           $detail_total_order = array(
+               'payment_method' => $getData[0]->method,
+               'delivery_fee' => $getData[0]->delivery_fee,
+               'price' =>$getData[0]->price,
+               'tax' =>$getData[0]->tax,
+               'total' => $getData[0]->delivery_fee + $getData[0]->price + $getData[0]->tax
+
+           );
+        }else{
+            return response()->json('Data Not Found', 404);
+        }
+    
+        
+        $data = array(
+            'detail_barang' => $detail_barang[0],
+            'detail_penerima' => $detail_penerima[0],
+            'detail_total_order' => $detail_total_order
+        );
+        return response()->json($data, 200);
+
+    }
+
+    public function deliveryDone($id)
+    {   
+      $order = Order::find($id);
+      date_default_timezone_set('Asia/Bangkok');
+       if($order){
+           Order::where('id',$id)
+                ->update([
+                'order_statuses_id' => 3,
+                'delivered_at' => date('Y-m-d H:i:s')
+
+                ]);
+
+            return response()->json('Data Successfully updated', 200);
+       }
+       
+       return response()->json('Data fail to update');
     }
 }

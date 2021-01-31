@@ -3,8 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use App\Models\Role;
-use App\Models\Permissions;
+use DB;
 class RolesAuth
 {
     /**
@@ -21,27 +20,27 @@ class RolesAuth
         $response = $next($request);
         
         // get user role permissions
-        $role = Role::findOrFail(auth()->user()->role_id);
-        $permissions = $role->permissions;
-        // get requested action
-        $actionName = $request->path();
-        
+        $role = auth()->user()->role_id;
+        $routeName = $request->route()[1]['as'];
+        $permissions = DB::select('SELECT * from roles 
+                        LEFT JOIN permission_role 
+                        ON roles.id = permission_role.role_id 
+                        RIGHT JOIN permissions 
+                        ON permission_role.permission_id = permissions.id 
+                        where roles.id = '.$role.' 
+                        AND 
+                        permissions.name = "'.$routeName.'"');
+
+
         // check if requested action is in permissions list
-        if (is_array($permissions) || is_object($permissions))
-    {
-        foreach ($permissions as $permission)
-        {
-        $name = $permission->name;
-        if ($request->is($name.'/*') )
-        {
+        if(!empty($permissions)){
         // authorized request
         return $next($request);
         }
-        }
+    
         // none authorized request
         return response('Unauthorized Action', 403);
 
-        return $response;
-    }
+   
  }
 }

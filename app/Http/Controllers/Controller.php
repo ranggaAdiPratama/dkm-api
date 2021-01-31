@@ -16,7 +16,7 @@ class Controller extends BaseController
         return response()->json([
             'token' => $token,
             // 'expires_in' => null,
-            'users' => $profile,
+            'users' => $profile[0],
 
         ], 200);
     }

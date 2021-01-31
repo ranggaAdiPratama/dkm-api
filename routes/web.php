@@ -2,17 +2,6 @@
 use Illuminate\Http\Request;
 
 
-/*
-|--------------------------------------------------------------------------
-| Application Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register all of the routes for an application.
-| It is a breeze. Simply tell Lumen the URIs it should respond to
-| and give it the Closure to call when that URI is requested.
-|
-*/
-
 $router->get('/', function () use ($router){
     return $router->app->version();
 });
@@ -43,7 +32,7 @@ Route::group(['prefix' => 'auth'], function () use ($router)
 
 
 // Menu Dashboard
-Route::group(['prefix' => 'menu' ,'middleware' => ['auth','role']], function () use ($router){
+Route::group(['prefix' => 'menu','as' => 'menu' ,'middleware' => ['auth','role']], function () use ($router){
     Route::get('/','SidebarController@index');
     Route::get('/{id}','SidebarController@show');
     Route::post('/', 'SidebarController@store');
@@ -58,6 +47,20 @@ Route::group(['prefix' => 'delivery-address'], function () {
     Route::post('/','DeliveryAddressController@store');
     Route::post('/update','DeliveryAddressController@update');
     Route::post('/{id}','DeliveryAddressController@destroy');
+});
+
+
+//Driver
+Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','role']], function () use ($router){
+    Route::get('/pickup','OrderController@pickupList');
+    Route::get('/pickup/history','OrderController@pickupHistory');
+    Route::get('/pickup/{id}','OrderController@pickupShow');
+    Route::post('/pickup/{id}','OrderController@pickupDone');
+    Route::get('/delivery','OrderController@deliveryList');
+    Route::get('/delivery/history','OrderController@deliveryHistory');  
+    Route::get('/delivery/{id}','OrderController@deliveryShow');
+    Route::post('/delivery/{id}','OrderController@deliveryDone');
+   
 });
 
 
