@@ -113,7 +113,8 @@ class OrderController extends Controller
 
     public function pickupList()
     {
-        $id  = auth()->user()->id;
+        // $id  = auth()->user()->id;
+        $id = 3;
         $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
                         ->select(
                             'orders.id',
@@ -126,6 +127,7 @@ class OrderController extends Controller
                         ->where('orders.driver_id',$id)
                         ->get();
         $data = array();
+        
         if (!empty($getData)){
             foreach ($getData as $key=>$val) {
                 $arr = array(
@@ -138,7 +140,7 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json($data, 200);
+        return response()->json(['data' => $data], 200);
     }
 
     public function pickupShow($id)
@@ -158,6 +160,7 @@ class OrderController extends Controller
                         )
                         ->where('orders.id',$id)
                         ->get();
+        $tanggal_order = $detail_barang[0]->created_at;
         
         $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
                                 ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
@@ -196,6 +199,7 @@ class OrderController extends Controller
     
         
         $data = array(
+            'tanggal_order' => date_format($tanggal_order, 'd-M-Y'),
             'detail_barang' => $detail_barang[0],
             'detail_penerima' => $detail_penerima[0],
             'detail_total_order' => $detail_total_order
