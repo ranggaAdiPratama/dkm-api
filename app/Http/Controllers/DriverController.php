@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Models\Driver;
 use App\Models\Wallet;
+use DB;
 
 class DriverController extends Controller
 {
@@ -15,29 +17,61 @@ class DriverController extends Controller
      */
     public function index()
     {
-        $driver = Driver::rightJoin('users' ,'drivers.user_id','users.id')
-                        ->leftJoin('driver_category as dc' ,'drivers.driver_category_id','dc.id')
-                        ->select(
-                            'users.id',
-                            'users.name',
-                            'users.email',
-                            'dc.category',
-                            'drivers.total_orders',
-                            'drivers.available'
-                            )
-                        ->where('users.role_id',3)
-                        ->get();
-        $saldo = Wallet::join('wallet_transaction as wt','wallet.id','wt.wallet_id');
-                         
-
-        
+        $getDriver = DB::select(
+                    'SELECT
+                    users.id, 
+                    users.`name`, 
+                    users.email, 
+                    driver_category.category, 
+                    wallet.begin_balance, 
+                    sum(wallet_transaction.debit) as debit, 
+                    sum(wallet_transaction.credit) as credit
+                    FROM
+                    users
+                    INNER JOIN
+                    drivers
+                    ON 
+                        users.id = drivers.user_id
+                    INNER JOIN
+                    driver_category
+                    ON 
+                        drivers.driver_category_id = driver_category.id
+                    LEFT JOIN
+                    wallet
+                    ON 
+                        users.id = wallet.user_id
+                    INNER JOIN
+                    db_dkm.wallet_transaction
+                    ON 
+                        wallet.id = wallet_transaction.wallet_id
+                    where users.role_id = 3
+                    
+                    GROUP BY 
+                    users.id,
+                    users.`name`, 
+                    users.email, 
+                    driver_category.category, 
+                    wallet.begin_balance 
+                   
+                    '
+        );
+        $driver =[];
+       if(!empty($getDriver)){
+           foreach ($getDriver as $val) {
+               $arr = array(
+                   'id' => $val->id,
+                   'name' => $val->name,
+                   'email' => $val->email,
+                   'category' => $val->category,
+                   'saldo' => $val->begin_balance + $val->debit + $val->credit
+               );
+               array_push($driver,$arr);
+           }
+       }
 
         return response()->json([
             
             'driver' => $driver ,
-            'saldo'  => $saldo ,
-            'debit' =>$debit ,
-            'credit' => $credit
         
             ], 200);
     }

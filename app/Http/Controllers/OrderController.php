@@ -145,7 +145,7 @@ class OrderController extends Controller
 
     public function pickupShow($id)
     {
-        $detail_barang = Order::join('order_details as od','orders.order_detail_id','od.id')
+        $getDetail = Order::join('order_details as od','orders.order_detail_id','od.id')
                         ->join('order_statuses as os' ,'orders.order_statuses_id', 'os.id')
                         ->select(
                             'orders.id',
@@ -160,7 +160,18 @@ class OrderController extends Controller
                         )
                         ->where('orders.id',$id)
                         ->get();
-        $tanggal_order = $detail_barang[0]->created_at;
+                        
+        $detail_barang = array(
+            'id' => $getDetail[0]->id,
+            'no_order' => $getDetail[0]->no_order,
+            'status' => $getDetail[0]->status,
+            'tanggal_order' => date_format($getDetail[0]->created_at,'d-M-Y'),
+            'name' => $getDetail[0]->name,
+            'weight' => $getDetail[0]->weight,
+            'volume' => $getDetail[0]->volume,
+            'price' => $getDetail[0]->price,
+            'photo' => $getDetail[0]->photo
+        );
         
         $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
                                 ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
@@ -199,8 +210,7 @@ class OrderController extends Controller
     
         
         $data = array(
-            'tanggal_order' => date_format($tanggal_order, 'd-M-Y'),
-            'detail_barang' => $detail_barang[0],
+            'detail_barang' => $detail_barang,
             'detail_penerima' => $detail_penerima[0],
             'detail_total_order' => $detail_total_order
         );
@@ -208,19 +218,29 @@ class OrderController extends Controller
 
     }
 
-    public function pickupDone($id)
+    public function pickupStatus(Request $request)
     {   
-      $order = Order::find($id);
+      $id = $request->input('id');
+      $status = $request->input('status');
       date_default_timezone_set('Asia/Bangkok');
-       if($order){
+       if($status == 3){
            Order::where('id',$id)
                 ->update([
                 'pickup_status' => 1,
+                'order_statuses_id' =>$status,
                 'pickup_at' => date('Y-m-d H:i:s')
 
                 ]);
 
             return response()->json('Data Successfully updated', 200);
+       }elseif($status < 3){
+        Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+
+        return response()->json('Data Successfully updated', 200);
        }
        
        return response()->json('Data fail to update');
@@ -386,7 +406,7 @@ class OrderController extends Controller
 
     }
 
-    public function deliveryDone($id)
+    public function deliveryStatus($id)
     {   
       $order = Order::find($id);
       date_default_timezone_set('Asia/Bangkok');

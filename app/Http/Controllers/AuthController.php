@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Models\Wallet;
 
 class AuthController extends Controller
 {
@@ -23,6 +24,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         //validate incoming request 
+        $role = $request->input('role_id');
         $this->validate($request, [
             'name'  => 'required|string',
             'email' => 'required|email|unique:users',
@@ -34,21 +36,34 @@ class AuthController extends Controller
 
         try 
         {
-            $user = new User;
-            $user->name = $request->input('name');
-            $user->email= $request->input('email');
-            $user->role_id= $request->input('role_id');
-            $user->password = app('hash')->make($request->input('password'));
-            $user->save();
+            // $user = new User;
+            // $user->name = $request->input('name');
+            // $user->email= $request->input('email');
+            // $user->role_id= $request->input('role_id');
+            // $user->password = app('hash')->make($request->input('password'));
+            // $user->save();
 
-            if($user->id !== null){
-                $profile = new UserProfile;
-                $profile->user_id = $user->id;
-                $profile->phone = $request->input('phone');
-                $profile->address = $request->input('address');
-                $profile->photo = $request->input('photo');
-                $profile->save();
+            // if($user->id !== null){
+            //     $profile = new UserProfile;
+            //     $profile->user_id = $user->id;
+            //     $profile->phone = $request->input('phone');
+            //     $profile->address = $request->input('address');
+            //     $profile->photo = $request->input('photo');
+            //     $profile->save();
+            // }
+            
+            if($role == 3){
+                $wallet = new Wallet;
+                $wallet->begin_balance = 0;
+                $wallet->user_id = 1;
+                $wallet->save();
+                
+                return 'berhasil buat wallet';
             }
+
+            // if($wallet->id !== null){
+            //     DB::insert('insert into wallet_transaction (wallet_id) values ('.$wallet->id.')');
+            // }
 
             return response()->json( [
                         'entity' => 'Users Created Successfully', 

@@ -42,11 +42,11 @@ Route::group(['prefix' => 'driver','as' => 'driver'], function () use ($router){
     Route::get('/pickup','OrderController@pickupList');
     Route::get('/pickup/history','OrderController@pickupHistory');
     Route::get('/pickup/{id}','OrderController@pickupShow');
-    Route::post('/pickup/{id}','OrderController@pickupDone');
+    Route::post('/pickup/status','OrderController@pickupStatus');
     Route::get('/delivery','OrderController@deliveryList');
     Route::get('/delivery/history','OrderController@deliveryHistory');  
     Route::get('/delivery/{id}','OrderController@deliveryShow');
-    Route::post('/delivery/{id}','OrderController@deliveryDone');
+    Route::post('/delivery/status','OrderController@deliveryStatus');
    
 });
 

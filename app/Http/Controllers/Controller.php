@@ -13,10 +13,44 @@ class Controller extends BaseController
     {
         $id = $currentUser->id;
         $profile = DB::select('select * from users join user_profiles ON users.id = user_profiles.user_id where users.id='.$id);
+        $saldo = DB::select('
+                    SELECT
+                    wallet.id, 
+                    wallet_transaction.wallet_id,   
+                    wallet.begin_balance, 
+                    wallet.ending_balance, 
+                    sum(wallet_transaction.debit) as debit, 
+                    sum(wallet_transaction.credit) as credit
+                    FROM
+                    wallet
+                    INNER JOIN
+                    wallet_transaction
+                    ON 
+                        wallet.id = wallet_transaction.wallet_id
+                    where user_id ='.$id.'
+                    GROUP BY wallet.id,wallet_id,wallet.begin_balance,wallet.ending_balance,credit,debit
+        ');
+        if(!empty($saldo)){
+            $end_balance = $saldo[0]->begin_balance + $saldo[0]->debit + $saldo[0]->credit;
+        } else{
+            $end_balance = 0;
+        }
+        
+        
         return response()->json([
             'token' => $token,
             // 'expires_in' => null,
-            'users' => $profile[0],
+            'users' => array(
+                'id' => intval($profile[0]->id),
+                'name' => $profile[0]->name,
+                'email' => $profile[0]->email,
+                'password' => $profile[0]->password,
+                'role_id' => intval($profile[0]->role_id),
+                'phone' => $profile[0]->phone,
+                'address' => $profile[0]->address,
+                'photo' =>$profile[0]->photo,
+                'saldo' =>$end_balance
+            )
 
         ], 200);
     }
