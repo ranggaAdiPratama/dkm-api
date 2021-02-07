@@ -16,29 +16,26 @@ class OrderController extends Controller
      */
     public function index()
     {
-      $data = DB::select('
-                        SELECT 
-                        orders.id, 
-                        orders.user_id, 
-                        orders.order_detail_id, 
-                        orders.tax, 
-                        orders.delivery_fee, 
-                        orders.hint, 
-                        order_statuses.`status`, 
-                        orders.active, 
-                        orders.driver_id, 
-                        orders.delivery_address_id, 
-                        orders.payment_id, 
-                        orders.created_at
-                        FROM
-                        orders
-                        LEFT JOIN
-                        order_statuses
-                        ON 
-                        orders.order_statuses_id = order_statuses.id ;
-                        ');
+      $getData = DB::table('list_orders')->get();
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#000'.$val->no_order,
+                    'client' => $val->name,
+                    'delivery_fee' => $val->delivery_fee,
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
 
-        return response()->json($data);
+        return response()->json(['data' => $data]);
     }
 
     /**
@@ -46,9 +43,18 @@ class OrderController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+    public function create(Request $request)
     {
-        //
+        $this->validate($request, [
+            'name'  => '',
+            'weight' => 'required',
+            'volume' =>'required',
+            'price' => 'required',
+            'photo' => 'required|image',
+        ]);
+
+        $photo = Str::random(34);
+        $request->file('photo')->move(storage_path('photo'), $avatar);
     }
 
     /**
@@ -70,10 +76,34 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $data['order_status'] = Order::find($id)->orderStatus;
-        $data['order'] = Order::find($id);
+        try {
+            $data['data_order'] = DB::table('order_detail')->where('id',$id)->get();
+            $data['data_product'] = DB::select('
+                                    SELECT
+                                    order_details.`name`, 
+                                    order_details.price, 
+                                    order_details.weight, 
+                                    order_details.volume, 
+                                    order_details.photo, 
+                                    order_details.receiver, 
+                                    order_details.phone, 
+                                    orders.delivery_fee
+                                FROM
+                                    orders
+                                    INNER JOIN
+                                    order_details
+                                    ON 
+                                        orders.order_detail_id = order_details.id
+                                WHERE
+                                    orders.id = '.$id.'
+            ');
 
-        return response()->json($data);
+            return response()->json($data);
+
+        } catch (\Throwable $th) {
+            return response()->json("Maaf, Data tidak di temukan", 402);
+        }
+        
     }
 
     /**
@@ -115,25 +145,46 @@ class OrderController extends Controller
     {
         // $id  = auth()->user()->id;
         $id = 3;
-        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
-                        ->select(
-                            'orders.id',
-                            'orders.no_order',
-                            'orders.created_at',
-                            'order_details.price'
-                            )
-                        ->where('orders.pickup_status',0)
-                        ->where('orders.order_statuses_id','<',3)
-                        ->where('orders.driver_id',$id)
-                        ->get();
+        // $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+        //                 ->select(
+        //                     'orders.id',
+        //                     'orders.no_order',
+        //                     'orders.created_at',
+        //                     'order_details.price'
+        //                     )
+        //                 ->where('orders.pickup_status',0)
+        //                 ->where('orders.order_statuses_id','<',3)
+        //                 ->where('orders.driver_id',$id)
+        //                 ->get();
+
+        $getData = DB::table('pickup_list')->get();      
         $data = array();
         
         if (!empty($getData)){
-            foreach ($getData as $key=>$val) {
+            foreach ($getData as $val) {
+                $date = date_create($val->created_at);
                 $arr = array(
                     'id' => $val->id,
                     'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_order' => date_format($val->created_at,"d-M-Y"),
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'delivery_fee' => $val->delivery_fee,
+                    'name' => $val->name,
+                    'price' => $val->price,
+                    'description' => $val->description,
+                    'weight' => $val->weight,
+                    'volume' => $val->volume,
+                    'photo' => $val->photo,
+                    'receiver' => $val->receiver,
+                    'phone' => $val->phone,
+                    'method' => $val->method,
+                    'status' => $val->status,
+                    'address' => $val->address,
+                    'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    'sender_name' => $val->sender_name,
+                    'sender_phone' => $val->sender_phone,
+                    'subtotal' => $val->delivery_fee + $val->price
                 );
 
                 array_push($data,$arr);
@@ -279,17 +330,18 @@ class OrderController extends Controller
 
     public function deliveryList()
     {
-        $id  = auth()->user()->id;
-        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
-                        ->select(
-                            'orders.id',
-                            'orders.no_order',
-                            'orders.pickup_at'
-                            )
-                        ->where('orders.pickup_status',1)
-                        ->where('orders.order_statuses_id','<',3)
-                        ->where('orders.driver_id',$id)
-                        ->get();
+        // $id  = auth()->user()->id;
+        // $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+        //                 ->select(
+        //                     'orders.id',
+        //                     'orders.no_order',
+        //                     'orders.pickup_at'
+        //                     )
+        //                 ->where('orders.pickup_status',1)
+        //                 ->where('orders.order_statuses_id','<',3)
+        //                 ->where('orders.driver_id',$id)
+        //                 ->get();
+        $getData = DB::table('delivery_list')->get();
         $data = array();
         if (!empty($getData)){
             foreach ($getData as $key=>$val) {
@@ -298,6 +350,24 @@ class OrderController extends Controller
                     'id' => $val->id,
                     'no_order' => 'ID#'.'000'.$val->no_order,
                     'tanggal_pickup' => date_format($date, 'd-M-Y'),
+                    'delivery_fee' => $val->delivery_fee,
+                    'name' => $val->name,
+                    'price' => $val->price,
+                    'description' => $val->description,
+                    'weight' => $val->weight,
+                    'volume' => $val->volume,
+                    'photo' => $val->photo,
+                    'receiver' => $val->receiver,
+                    'phone' => $val->phone,
+                    'method' => $val->method,
+                    'status' => $val->status,
+                    'address' => $val->address,
+                    'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    'sender_name' => $val->sender_name,
+                    'sender_phone' => $val->sender_phone,
+                    'subtotal' => $val->delivery_fee + $val->price
                 );
 
                 array_push($data,$arr);
@@ -423,4 +493,17 @@ class OrderController extends Controller
        
        return response()->json('Data fail to update');
     }
+
+    public function orderHistory()
+    {
+        try {
+            $data = DB::table('history_orders')->get();
+
+            return response()->json(['data' =>$data], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json('Belum Ada History', 200);
+        }
+    }
+
 }

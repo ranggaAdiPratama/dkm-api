@@ -51,31 +51,28 @@ Route::group(['prefix' => 'driver','as' => 'driver'], function () use ($router){
 });
 
 
-//Order
+//Admin
 Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth','role']], function ()  {
     Route::get('order/','OrderController@index');
     Route::get('order/{id}','OrderController@show');
+    Route::get('order/history','OrderController@orderHistory');
     Route::get('driver','DriverController@index');
+    Route::get('role','AuthController@roleList');
+    Route::get('user','AuthController@userList');
+    Route::post('/pickup/status','OrderController@pickupStatus');
+
     // Route::post('/','OrderController@store');
     // Route::post('/update','OrderController@update');
     // Route::post('/{id}','OrderController@destroy');
 });
 
+// Customer
 
-// $router->get('/key', 'ExampleController@generateKey' );
-
-// $router->post('optional[/{param}]',function($param=null){
-//     return $param;
-// });
-
-// $router->group(['prefix' => 'admin','middleware' => 'age','namespace' => ''] , function () use ($router){
-//     $router->get('home[/{age}]',function($age = null){
-//         return 'This is Home';
-//     });
-// });
-
-// $router->get('/fail',function(){
-//     return 'Maaf umur anda belum mencukupi untuk mengakses halaman ini';
-// });
+Route::group(['prefix' => 'customer','as' => 'customer' ,'middleware' =>['auth','role']], function ()  {
+    Route::get('deliv-fee-list','DeliveryListController@index');
+    // Route::post('/','OrderController@store');
+    // Route::post('/update','OrderController@update');
+    // Route::post('/{id}','OrderController@destroy');
+});
 
 

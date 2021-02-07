@@ -10,9 +10,10 @@ use DB;
 
 class DriverController extends Controller
 {
+ 
     /**
      * Display a listing of the resource.
-     *
+     *  
      * @return \Illuminate\Http\Response
      */
     public function index()
@@ -23,6 +24,7 @@ class DriverController extends Controller
                     users.`name`, 
                     users.email, 
                     driver_category.category, 
+                    drivers.total_orders, 
                     wallet.begin_balance, 
                     sum(wallet_transaction.debit) as debit, 
                     sum(wallet_transaction.credit) as credit
@@ -50,11 +52,10 @@ class DriverController extends Controller
                     users.id,
                     users.`name`, 
                     users.email, 
+                    drivers.total_orders,
                     driver_category.category, 
                     wallet.begin_balance 
-                   
-                    '
-        );
+                    ');
         $driver =[];
        if(!empty($getDriver)){
            foreach ($getDriver as $val) {
@@ -62,6 +63,7 @@ class DriverController extends Controller
                    'id' => $val->id,
                    'name' => $val->name,
                    'email' => $val->email,
+                   'total_order' => $val->total_orders,
                    'category' => $val->category,
                    'saldo' => $val->begin_balance + $val->debit + $val->credit
                );
