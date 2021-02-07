@@ -38,7 +38,7 @@ Route::group(['prefix' => 'delivery-address'], function () {
 
 // ,'middleware' => ['auth','role']
 //Driver
-Route::group(['prefix' => 'driver','as' => 'driver'], function () use ($router){
+Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','role']], function () use ($router){
     Route::get('/pickup','OrderController@pickupList');
     Route::get('/pickup/history','OrderController@pickupHistory');
     Route::get('/pickup/{id}','OrderController@pickupShow');

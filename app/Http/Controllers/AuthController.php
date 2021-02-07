@@ -36,6 +36,13 @@ class AuthController extends Controller
             'address' => 'required',
         ]);
 
+        if ($request->hasFile('photo')) 
+        { 
+            $fileExtension = $request->file('photo')->getClientOriginalName(); 
+            $file = pathinfo($fileExtension, PATHINFO_FILENAME); 
+            $extension = $request->file('photo')->getClientOriginalExtension();
+            $fileStore = $file . '_' . time() . '.' . $extension; 
+            $path = $request->file('photo')->storeAs('photos',$fileStore); }
         try 
         {
             $user = new User;
@@ -50,7 +57,7 @@ class AuthController extends Controller
                 $profile->user_id = $user->id;
                 $profile->phone = $request->input('phone');
                 $profile->address = $request->input('address');
-                $profile->photo = $request->input('photo');
+                $profile->photo = 'http://192.168.18.60:8000/storage/app/photos/'.$fileStore;
                 $profile->save();
             }
             
@@ -109,8 +116,24 @@ class AuthController extends Controller
      * @return Response
      */	 	
     public function me()
-    {
-        return response()->json(auth()->user());
+    {   
+        
+        $id = auth()->user()->id;
+        // dd($id);
+        $data = User::join('user_profiles as up','users.id','up.user_id')
+                        ->select(
+                            'users.id',
+                            'users.name',
+                            'users.email',
+                            'users.created_at',
+                            'up.phone',
+                            'up.photo',
+                            'up.address'
+                            )
+                        ->where('users.id',$id)
+                        ->get();
+
+        return response()->json($data);
     }
 
     public function logout()

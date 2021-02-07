@@ -93,7 +93,7 @@ class OrderController extends Controller
                                     INNER JOIN
                                     order_details
                                     ON 
-                                        orders.order_detail_id = order_details.id
+                                        orders.id = order_details.orders_id
                                 WHERE
                                     orders.id = '.$id.'
             ');
@@ -143,50 +143,71 @@ class OrderController extends Controller
 
     public function pickupList()
     {
-        // $id  = auth()->user()->id;
-        $id = 3;
-        // $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
-        //                 ->select(
-        //                     'orders.id',
-        //                     'orders.no_order',
-        //                     'orders.created_at',
-        //                     'order_details.price'
-        //                     )
-        //                 ->where('orders.pickup_status',0)
-        //                 ->where('orders.order_statuses_id','<',3)
-        //                 ->where('orders.driver_id',$id)
-        //                 ->get();
+        $id  = auth()->user()->id;
 
-        $getData = DB::table('pickup_list')->get();      
+        $getOrder = DB::table('pickup_list')
+                            ->where('driver_id_pickup',$id)
+                            ->get();
+       
+        $getData = DB::table('pickup_detail_list')
+                        ->where('driver_id_pickup', $id)
+                        ->get();
         $data = array();
         
-        if (!empty($getData)){
-            foreach ($getData as $val) {
+        if (!empty($getOrder)){
+            foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
-                $arr = array(
-                    'id' => $val->id,
-                    'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_order' => date_format($date,"d-M-Y"),
-                    'delivery_fee' => $val->delivery_fee,
+                $detail_order =  $getData = DB::table('pickup_detail_list')
+                                ->where('driver_id_pickup', $id)
+                                ->where('no_order',$val->no_order)
+                                ->get();
+                $detailArr = array() ;
+                $total = array();
+            if(!empty($detail_order)){
+                foreach ($detail_order as $val) {
+                    $array = array(
+                    'delivery_fee' => intval($val->delivery_fee) ,
                     'name' => $val->name,
-                    'price' => $val->price,
+                    'price' => intval($val->price),
                     'description' => $val->description,
-                    'weight' => $val->weight,
-                    'volume' => $val->volume,
+                    'weight' => intval($val->weight),
+                    'volume' => intval($val->volume),
                     'photo' => $val->photo,
                     'receiver' => $val->receiver,
-                    'phone' => $val->phone,
-                    'method' => $val->method,
-                    'status' => $val->status,
+                    // 'phone' => $val->phone,
+                    // 'method' => $val->method,
+                    // 'status' => $val->status,
                     'address' => $val->address,
                     'desc_add' => $val->desc_add,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
-                    'sender_name' => $val->sender_name,
-                    'sender_phone' => $val->sender_phone,
+                    // 'sender_name' => $val->sender_name,
+                    // 'sender_phone' => $val->sender_phone,
                     'subtotal' => $val->delivery_fee + $val->price
+                    );
+                    
+                    array_push($total,$array['subtotal']);
+                    array_push($detailArr,$array);
+                }
+            }
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => 'ID#'.'000'.$val->no_order,
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'detail_order' => $detailArr,
+                     'phone' => $val->phone,
+                    'method' => $val->method,
+                    'status' => $val->status,
+                     'sender_name' => $val->sender_name,
+                    'sender_phone' => $val->sender_phone,
+                    'address' => $val->address,
+                    'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    'total' => array_sum($total)
+                      
+                    
                 );
-
                 array_push($data,$arr);
             }
         }
@@ -196,7 +217,7 @@ class OrderController extends Controller
 
     public function pickupShow($id)
     {
-        $getDetail = Order::join('order_details as od','orders.order_detail_id','od.id')
+        $getDetail = Order::join('order_details as od','orders.id','od.id')
                         ->join('order_statuses as os' ,'orders.order_statuses_id', 'os.id')
                         ->select(
                             'orders.id',
@@ -224,7 +245,7 @@ class OrderController extends Controller
             'photo' => $getDetail[0]->photo
         );
         
-        $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
+        $detail_penerima = Order::join('order_details as od','orders.id','od.id')
                                 ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
                                 ->select(
                                     'od.receiver',
@@ -235,7 +256,7 @@ class OrderController extends Controller
                                 ->get();
         
         $getData = Order:: join('payments as p','orders.payment_id','p.id')
-                                    ->join('order_details as od','orders.order_detail_id','od.id')
+                                    ->join('order_details as od','orders.id','od.id')
                                     ->join('payment_methods as pm' ,'p.payment_method_id','pm.id')
                                     ->join('payment_status as ps','p.status','ps.id')
                                     ->select(
@@ -273,18 +294,21 @@ class OrderController extends Controller
     {   
       $id = $request->input('id');
       $status = $request->input('status');
+      $method = $request->input('payment_method');
       date_default_timezone_set('Asia/Bangkok');
        if($status == 3){
-           Order::where('id',$id)
+           Order::join('payments','payments.id','orders.payment_id')
+                ->where('orders.id',$id)
                 ->update([
-                'pickup_status' => 1,
+                'pickup_status' => 1 ,
+                'payment_method_id' => $method,
                 'order_statuses_id' =>$status,
                 'pickup_at' => date('Y-m-d H:i:s')
 
                 ]);
 
             return response()->json('Data Successfully updated', 200);
-       }elseif($status < 3){
+       }elseif($status !== 3){
         Order::where('id',$id)
         ->update([
         'order_statuses_id' =>$status,    
@@ -300,28 +324,41 @@ class OrderController extends Controller
     public function pickupHistory()
     {
         $id  = auth()->user()->id;
-        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
-                        ->select(
-                            'orders.id',
-                            'orders.no_order',
-                            'orders.updated_at'
-                            )
-                        ->where('orders.pickup_status',1)
-                        ->where('orders.driver_id',$id)
-                        ->get();
+        $getData = DB::table('pickup_list_history')
+                        ->where('driver_id_pickup', $id)
+                        ->get();     
         $data = array();
+        
         if (!empty($getData)){
-            foreach ($getData as $key=>$val) {
-                $date = date_create($val->pickup_at);
+            foreach ($getData as $val) {
+                $date = date_create($val->created_at);
                 $arr = array(
                     'id' => $val->id,
                     'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_pickup' => date_format($date,"d-M-Y"),
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'delivery_fee' => $val->delivery_fee,
+                    'name' => $val->name,
+                    'price' => $val->price,
+                    'description' => $val->description,
+                    'weight' => $val->weight,
+                    'volume' => $val->volume,
+                    'photo' => $val->photo,
+                    'receiver' => $val->receiver,
+                    'phone' => $val->phone,
+                    'method' => $val->method,
+                    'status' => $val->status,
+                    'address' => $val->address,
+                    'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    'sender_name' => $val->sender_name,
+                    'sender_phone' => $val->sender_phone,
+                    'subtotal' => $val->delivery_fee + $val->price
                 );
 
                 array_push($data,$arr);
             }
-            return response()->json($data, 200); 
+            return response()->json($data, 200);
         }
         return response()->json('History Pickup Tidak ditemukan', 404);
         
@@ -330,18 +367,10 @@ class OrderController extends Controller
 
     public function deliveryList()
     {
-        // $id  = auth()->user()->id;
-        // $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
-        //                 ->select(
-        //                     'orders.id',
-        //                     'orders.no_order',
-        //                     'orders.pickup_at'
-        //                     )
-        //                 ->where('orders.pickup_status',1)
-        //                 ->where('orders.order_statuses_id','<',3)
-        //                 ->where('orders.driver_id',$id)
-        //                 ->get();
-        $getData = DB::table('delivery_list')->get();
+        $id  = auth()->user()->id;
+        $getData = DB::table('delivery_list')
+                        ->where('driver_id_deliver',$id)
+                        ->get();
         $data = array();
         if (!empty($getData)){
             foreach ($getData as $key=>$val) {
@@ -380,7 +409,7 @@ class OrderController extends Controller
     public function deliveryHistory()
     {
         $id  = auth()->user()->id;
-        $getData= Order::join('order_details','orders.order_detail_id','order_details.id')
+        $getData= Order::join('order_details','orders.id','order_details.orders_id')
                         ->select(
                             'orders.id',
                             'orders.no_order',
@@ -389,7 +418,7 @@ class OrderController extends Controller
                         ->where('orders.pickup_status',1)
                         ->where('orders.order_statuses_id','=',3)
                         
-                        ->where('orders.driver_id',$id)
+                        ->where('orders.driver_id_deliver',$id)
                         ->get();
 
         $data = array();
@@ -412,7 +441,7 @@ class OrderController extends Controller
 
     public function deliveryShow($id)
     {
-        $detail_barang = Order::join('order_details as od','orders.order_detail_id','od.id')
+        $detail_barang = Order::join('order_details as od','orders.id','od.id')
                         ->join('order_statuses as os' ,'orders.order_statuses_id', 'os.id')
                         ->select(
                             'orders.id',
@@ -429,7 +458,7 @@ class OrderController extends Controller
                         ->where('orders.pickup_status',1)
                         ->get();
         
-        $detail_penerima = Order::join('order_details as od','orders.order_detail_id','od.id')
+        $detail_penerima = Order::join('order_details as od','orders.id','od.id')
                                 ->join('delivery_addresses as da', 'orders.delivery_address_id','da.id')
                                 ->select(
                                     'od.receiver',
@@ -441,7 +470,7 @@ class OrderController extends Controller
                                 ->get();
         
         $getData = Order:: join('payments as p','orders.payment_id','p.id')
-                                    ->join('order_details as od','orders.order_detail_id','od.id')
+                                    ->join('order_details as od','orders.id','od.id')
                                     ->join('payment_methods as pm' ,'p.payment_method_id','pm.id')
                                     ->join('payment_status as ps','p.status','ps.id')
                                     ->select(
