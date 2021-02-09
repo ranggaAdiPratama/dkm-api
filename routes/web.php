@@ -47,32 +47,34 @@ Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','rol
     Route::get('/delivery/history','OrderController@deliveryHistory');  
     Route::get('/delivery/{id}','OrderController@deliveryShow');
     Route::post('/delivery/status','OrderController@deliveryStatus');
+    Route::get('/get-district','OrderController@getProvinsi');
+    Route::get('/get-village','OrderController@getProvinsi');
    
 });
 
-
 //Admin
 Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth','role']], function ()  {
-    Route::get('order/','OrderController@index');
-    Route::get('order/{id}','OrderController@show');
+    Route::get('order/pickup','OrderController@index');
+    Route::get('order/finish-pickup','OrderController@finishPickupList');
+    Route::get('order/ready-to-deliver','OrderController@readyToDeliveryList');
+    Route::get('order/delivered','OrderController@deliveredList');
     Route::get('order/history','OrderController@orderHistory');
+    Route::get('order/{id}','OrderController@show');
     Route::get('driver','DriverController@index');
     Route::get('role','AuthController@roleList');
     Route::get('user','AuthController@userList');
     Route::post('/pickup/status','OrderController@pickupStatus');
-
-    // Route::post('/','OrderController@store');
-    // Route::post('/update','OrderController@update');
-    // Route::post('/{id}','OrderController@destroy');
 });
+
 
 // Customer
-
 Route::group(['prefix' => 'customer','as' => 'customer' ,'middleware' =>['auth','role']], function ()  {
     Route::get('deliv-fee-list','DeliveryListController@index');
-    // Route::post('/','OrderController@store');
-    // Route::post('/update','OrderController@update');
-    // Route::post('/{id}','OrderController@destroy');
+    Route::get('district-list','ApiRegionController@getDistrict');
+    Route::get('villages-list/{id}','ApiRegionController@getVillage');
+    Route::post('order','OrderController@create');
 });
+
+
 
 
