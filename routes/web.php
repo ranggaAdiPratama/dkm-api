@@ -63,6 +63,7 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth','role'
     Route::get('driver','DriverController@index');
     Route::get('role','AuthController@roleList');
     Route::get('user','AuthController@userList');
+    
     Route::post('/pickup/status','OrderController@pickupStatus');
 });
 

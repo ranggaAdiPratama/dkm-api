@@ -48,19 +48,22 @@ class OrderController extends Controller
         $numb = rand(0,999999);
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
-        dd($code);
        
         $this->validate($request, [
             'name'  => 'required',
             'weight' => 'required',
             'volume' =>'required',
-            'price' => 'required',
+            'price' => 'required'
             // 'photo' => 'required|image',
         ]);
 
     $order = new Order;
     $order->user_id = auth()->user()->id;
-    $order->no_order = rand(0,999999);
+    $order->no_order = $code;
+    $order->order_statuses_id = 1 ;
+
+
+    
 
 
        
@@ -185,16 +188,16 @@ class OrderController extends Controller
                     'weight' => intval($val->weight),
                     'volume' => intval($val->volume),
                     'photo' => $val->photo,
-                    'receiver' => $val->receiver,
-                    'phone_receiver' => $val->phone,
+                    'receiver_name' => $val->receiver,
+                    'receiver_phone' => $val->phone,
                     'method' => $val->method,
                     'status' => $val->status,
-                    'address' => $val->address,
-                    'desc_add' => $val->desc_add,
+                    'deliv_address' => $val->address,
+                    // 'desc_add' => $val->desc_add,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
-                    'sender_name' => $val->sender_name,
-                    'sender_phone' => $val->sender_phone,
+                    // 'sender_name' => $val->sender_name,
+                    // 'sender_phone' => $val->sender_phone,
                     'subtotal' => $val->delivery_fee + $val->price
                     );
                     array_push($total_delivery_fee,$array['delivery_fee']);
@@ -206,19 +209,17 @@ class OrderController extends Controller
                 $arr = array(
                     'sender_name' => $val->sender_name,
                     'tanggal_order' => date_format($date,"d-M-Y"),
-                    'list_orders' => $detailArr,
-                     'phone' => $val->phone,
-                    'method' => $val->method,
-                    'status' => $val->status,
-                     'sender_name' => $val->sender_name,
                     'sender_phone' => $val->sender_phone,
-                    'address' => $val->address,
-                    'desc_add' => $val->desc_add,
+                    'sender_address' => $val->sender_address,
+                    'district' => $val->district,
+                    'village' => $val->village,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
+                    // 'status' => $val->status,x
+                    'list_orders' => $detailArr,
                     'total_deliv_fee' => array_sum($total_delivery_fee),
                     'total_price' => array_sum($total_price),
-                    'total' => array_sum($total)
+                    'grand_total' => array_sum($total)
                       
                     
                 );
@@ -338,43 +339,78 @@ class OrderController extends Controller
     public function pickupHistory()
     {
         $id  = auth()->user()->id;
-        $getData = DB::table('pickup_list_history')
-                        ->where('driver_id_pickup', $id)
-                        ->get();     
+
+        $getOrder = DB::table('pickup_history_list')
+                            ->where('driver_id_pickup',$id)
+                            ->get();
+       
+        // $getData = DB::table('pickup_detail_list')
+        //                 ->where('driver_id_pickup', $id)
+        //                 ->get();
         $data = array();
         
-        if (!empty($getData)){
-            foreach ($getData as $val) {
+        if (!empty($getOrder)){
+            foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
-                $arr = array(
-                    'id' => $val->id,
+                $detail_order = DB::table('pickup_detail_history_list') 
+                                ->where('driver_id_pickup', $id)
+                                ->where('user_id',$val->user_id)
+                                ->get();
+                $detailArr = array() ;
+                $total_delivery_fee = array();
+                $total_price = array();
+                $total = array();
+            if(!empty($detail_order)){
+                foreach ($detail_order as $val) {
+                    $array = array(
                     'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_order' => date_format($date,"d-M-Y"),
-                    'delivery_fee' => $val->delivery_fee,
+                    'delivery_fee' => intval($val->delivery_fee) ,
                     'name' => $val->name,
-                    'price' => $val->price,
+                    'price' => intval($val->price),
                     'description' => $val->description,
-                    'weight' => $val->weight,
-                    'volume' => $val->volume,
+                    'weight' => intval($val->weight),
+                    'volume' => intval($val->volume),
                     'photo' => $val->photo,
-                    'receiver' => $val->receiver,
-                    'phone' => $val->phone,
+                    'receiver_name' => $val->receiver,
+                    'receiver_phone' => $val->phone,
                     'method' => $val->method,
                     'status' => $val->status,
-                    'address' => $val->address,
-                    'desc_add' => $val->desc_add,
+                    'deliv_address' => $val->address,
+                    // 'desc_add' => $val->desc_add,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
-                    'sender_name' => $val->sender_name,
-                    'sender_phone' => $val->sender_phone,
+                    // 'sender_name' => $val->sender_name,
+                    // 'sender_phone' => $val->sender_phone,
                     'subtotal' => $val->delivery_fee + $val->price
+                    );
+                    array_push($total_delivery_fee,$array['delivery_fee']);
+                    array_push($total_price,$array['price']);
+                    array_push($total,$array['subtotal']);
+                    array_push($detailArr,$array);
+                }
+            }
+                $arr = array(
+                    'sender_name' => $val->sender_name,
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'sender_phone' => $val->sender_phone,
+                    'sender_address' => $val->sender_address,
+                    'district' => $val->district,
+                    'village' => $val->village,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    // 'status' => $val->status,x
+                    'list_orders' => $detailArr,
+                    'total_deliv_fee' => array_sum($total_delivery_fee),
+                    'total_price' => array_sum($total_price),
+                    'grand_total' => array_sum($total)
+                      
+                    
                 );
-
                 array_push($data,$arr);
             }
-            return response()->json($data, 200);
         }
-        return response()->json('History Pickup Tidak ditemukan', 404);
+
+        return response()->json(['data' => $data], 200);
         
     }
 
@@ -382,75 +418,155 @@ class OrderController extends Controller
     public function deliveryList()
     {
         $id  = auth()->user()->id;
-        $getData = DB::table('delivery_list')
-                        ->where('driver_id_deliver',$id)
-                        ->get();
+
+        $getOrder = DB::table('delivery_list')
+                            ->where('driver_id_pickup',$id)
+                            ->get();
+       
+        // $getData = DB::table('pickup_detail_list')
+        //                 ->where('driver_id_pickup', $id)
+        //                 ->get();
         $data = array();
-        if (!empty($getData)){
-            foreach ($getData as $key=>$val) {
-                $date = date_create($val->pickup_at);
-                $arr = array(
-                    'id' => $val->id,
+        
+        if (!empty($getOrder)){
+            foreach ($getOrder as $val) {
+                $date = date_create($val->created_at);
+                $detail_order = DB::table('delivery_detail_list') 
+                                ->where('driver_id_deliver', $id)
+                                ->where('user_id',$val->user_id)
+                                ->get();
+                $detailArr = array() ;
+                $total_delivery_fee = array();
+                $total_price = array();
+                $total = array();
+            if(!empty($detail_order)){
+                foreach ($detail_order as $val) {
+                    $array = array(
                     'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_pickup' => date_format($date, 'd-M-Y'),
-                    'delivery_fee' => $val->delivery_fee,
+                    'delivery_fee' => intval($val->delivery_fee) ,
                     'name' => $val->name,
-                    'price' => $val->price,
+                    'price' => intval($val->price),
                     'description' => $val->description,
-                    'weight' => $val->weight,
-                    'volume' => $val->volume,
+                    'weight' => intval($val->weight),
+                    'volume' => intval($val->volume),
                     'photo' => $val->photo,
-                    'receiver' => $val->receiver,
-                    'phone' => $val->phone,
+                    'receiver_name' => $val->receiver,
+                    'receiver_phone' => $val->phone,
                     'method' => $val->method,
                     'status' => $val->status,
-                    'address' => $val->address,
-                    'desc_add' => $val->desc_add,
+                    'deliv_address' => $val->address,
+                    // 'desc_add' => $val->desc_add,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
-                    'sender_name' => $val->sender_name,
-                    'sender_phone' => $val->sender_phone,
+                    // 'sender_name' => $val->sender_name,
+                    // 'sender_phone' => $val->sender_phone,
                     'subtotal' => $val->delivery_fee + $val->price
+                    );
+                    array_push($total_delivery_fee,$array['delivery_fee']);
+                    array_push($total_price,$array['price']);
+                    array_push($total,$array['subtotal']);
+                    array_push($detailArr,$array);
+                }
+            }
+                $arr = array(
+                    'sender_name' => $val->sender_name,
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'sender_phone' => $val->sender_phone,
+                    'sender_address' => $val->sender_address,
+                    'district' => $val->district,
+                    'village' => $val->village,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    // 'status' => $val->status,x
+                    'list_orders' => $detailArr,
+                    'total_deliv_fee' => array_sum($total_delivery_fee),
+                    'total_price' => array_sum($total_price),
+                    'grand_total' => array_sum($total)
+                      
+                    
                 );
-
                 array_push($data,$arr);
             }
-            return response()->json($data, 200); 
         }
-        return response()->json('Data Not Found', 404);
+
+        return response()->json(['data' => $data], 200);
     }
 
     public function deliveryHistory()
     {
         $id  = auth()->user()->id;
-        $getData= Order::join('order_details','orders.id','order_details.orders_id')
-                        ->select(
-                            'orders.id',
-                            'orders.no_order',
-                            'orders.delivered_at'
-                            )
-                        ->where('orders.pickup_status',1)
-                        ->where('orders.order_statuses_id','=',3)
-                        
-                        ->where('orders.driver_id_deliver',$id)
-                        ->get();
 
+        $getOrder = DB::table('delivery_history_list')
+                            ->where('driver_id_pickup',$id)
+                            ->get();
+       
+        // $getData = DB::table('pickup_detail_list')
+        //                 ->where('driver_id_pickup', $id)
+        //                 ->get();
         $data = array();
-        if (!empty($getData)){
-            foreach ($getData as $val) {
-                $date = date_create($val->delivered_at);
-                $arr = array(
-                    'id' => $val->id,
+        
+        if (!empty($getOrder)){
+            foreach ($getOrder as $val) {
+                $date = date_create($val->created_at);
+                $detail_order = DB::table('delivery_detail_history_list') 
+                                ->where('driver_id_deliver', $id)
+                                ->where('user_id',$val->user_id)
+                                ->get();
+                $detailArr = array() ;
+                $total_delivery_fee = array();
+                $total_price = array();
+                $total = array();
+            if(!empty($detail_order)){
+                foreach ($detail_order as $val) {
+                    $array = array(
                     'no_order' => 'ID#'.'000'.$val->no_order,
-                    'tanggal_deliver' => date_format($date , "d-M-Y H:i:s")
+                    'delivery_fee' => intval($val->delivery_fee) ,
+                    'name' => $val->name,
+                    'price' => intval($val->price),
+                    'description' => $val->description,
+                    'weight' => intval($val->weight),
+                    'volume' => intval($val->volume),
+                    'photo' => $val->photo,
+                    'receiver_name' => $val->receiver,
+                    'receiver_phone' => $val->phone,
+                    'method' => $val->method,
+                    'status' => $val->status,
+                    'deliv_address' => $val->address,
+                    // 'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    // 'sender_name' => $val->sender_name,
+                    // 'sender_phone' => $val->sender_phone,
+                    'subtotal' => $val->delivery_fee + $val->price
+                    );
+                    array_push($total_delivery_fee,$array['delivery_fee']);
+                    array_push($total_price,$array['price']);
+                    array_push($total,$array['subtotal']);
+                    array_push($detailArr,$array);
+                }
+            }
+                $arr = array(
+                    'sender_name' => $val->sender_name,
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'sender_phone' => $val->sender_phone,
+                    'sender_address' => $val->sender_address,
+                    'district' => $val->district,
+                    'village' => $val->village,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    // 'status' => $val->status,x
+                    'list_orders' => $detailArr,
+                    'total_deliv_fee' => array_sum($total_delivery_fee),
+                    'total_price' => array_sum($total_price),
+                    'grand_total' => array_sum($total)
+                      
+                    
                 );
-
-                
                 array_push($data,$arr);
             }
-            return response()->json($data, 200); 
         }
-        return response()->json('Data Not Found', 404);
+
+        return response()->json(['data' => $data], 200);
     }
 
     public function deliveryShow($id)
