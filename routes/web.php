@@ -41,7 +41,7 @@ Route::group(['prefix' => 'delivery-address'], function () {
 Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','role']], function () use ($router){
     Route::get('/pickup','OrderController@pickupList');
     Route::get('/pickup/history','OrderController@pickupHistory');
-    Route::get('/pickup/{id}','OrderController@pickupShow');
+    Route::post('/pickup-detail','OrderController@pickupShow');
     Route::post('/pickup/status','OrderController@pickupStatus');
     Route::get('/delivery','OrderController@deliveryList');
     Route::get('/delivery/history','OrderController@deliveryHistory');  
@@ -49,22 +49,26 @@ Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','rol
     Route::post('/delivery/status','OrderController@deliveryStatus');
     Route::get('/get-district','OrderController@getProvinsi');
     Route::get('/get-village','OrderController@getProvinsi');
-   
+    
+    
 });
+
+Route::get('/photo/{name}','AuthController@getPhoto');
 
 //Admin
 Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth','role']], function ()  {
-    Route::get('order/pickup','OrderController@index');
-    Route::get('order/finish-pickup','OrderController@finishPickupList');
-    Route::get('order/ready-to-deliver','OrderController@readyToDeliveryList');
-    Route::get('order/delivered','OrderController@deliveredList');
-    Route::get('order/history','OrderController@orderHistory');
-    Route::get('order/{id}','OrderController@show');
-    Route::get('driver','DriverController@index');
+    Route::get('order/pickup','AdminOrderController@index');
+    Route::get('order/finish-pickup','AdminOrderController@finishPickupList');
+    Route::get('order/ready-to-deliver','AdminOrderController@readyToDeliveryList');
+    Route::get('order/delivered','AdminOrderController@deliveredList');
+    Route::get('order/history','AdminOrderController@orderHistory');
+    Route::get('driver','AdminOrderController@driverList');
+    Route::get('driver/wallet','DriverController@driverWallet');
+    Route::get('driver/wallet/{id}','DriverController@driverWalletDetail');
     Route::get('role','AuthController@roleList');
     Route::get('user','AuthController@userList');
-    
-    Route::post('/pickup/status','OrderController@pickupStatus');
+    Route::post('status','AdminOrderController@status');
+    Route::post('order','AdminOrderController@create');
 });
 
 
@@ -75,6 +79,8 @@ Route::group(['prefix' => 'customer','as' => 'customer' ,'middleware' =>['auth',
     Route::get('villages-list/{id}','ApiRegionController@getVillage');
     Route::post('order','OrderController@create');
 });
+
+
 
 
 

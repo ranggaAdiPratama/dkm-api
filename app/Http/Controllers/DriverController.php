@@ -143,4 +143,67 @@ class DriverController extends Controller
     {
         //
     }
+
+    public function driverWallet()
+    {
+        $getData = DB::table('driver_wallet')->get();
+        $data = array();
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'driver_id' => $val->id,
+                    'driver_name' => $val->name,
+                    'begin_balance' =>$val->begin_balance,
+                    'amount' => $val->amount,
+                    'ending_balance'=> $val->amount + $val->begin_balance
+                );
+                array_push($data,$arr);
+            }
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Not Found', 204);
+    }
+
+    public function driverWalletDetail($id)
+    {
+        //Cek Saldo Awal
+        $begin_balance_check = DB::select('SELECT begin_balance FROM wallet where CAST(created_at AS DATE) = CURRENT_DATE');
+        // dd($begin_balance_check);
+        $begin_balance = $begin_balance_check;
+        $getData = DB::table('driver_wallet_detail')
+                    ->where('id',$id)
+                    ->get();
+        $data = array();
+        if(!empty($getData)){
+            $ending_balance = [];
+            foreach($getData as $val){
+                // if($ending_balance[0] == 0){
+                //     $start =array($val->begin_balance + $val->debit + $val->credit); 
+                //     array_replace($ending_balance,$start);
+                // }else {
+                //     $ending = array($ending_balance[0] + $val->debit + $val->credit) ;
+                //     array_replace($ending_balance,$ending); 
+                // }
+                $arr = array(
+                    // 'driver_id' => $val->id,
+                    // 'begin_balance' =>s,
+                    'amount' => intval($val->amount),
+                    
+                    'description' => $val->description,
+                    'ending_balance' => $begin_balance[0]->begin_balance + $val->amount 
+                );
+                $end = $begin_balance[0]->begin_balance + $val->amount;
+                array_replace($ending_balance,$end);
+                array_push($data,$arr);
+            }
+            return response()->json([
+                'begin_balance' => $begin_balance[0]->begin_balance,
+                'data' => $data
+                ]);
+        }
+        return response()->json('Data Not Found', 204);
+    }
+
+
 }

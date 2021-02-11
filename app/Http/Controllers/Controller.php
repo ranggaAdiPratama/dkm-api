@@ -19,8 +19,7 @@ class Controller extends BaseController
                     wallet_transaction.wallet_id,   
                     wallet.begin_balance, 
                     wallet.ending_balance, 
-                    sum(wallet_transaction.debit) as debit, 
-                    sum(wallet_transaction.credit) as credit
+                    sum(wallet_transaction.amount) as amount
                     FROM
                     wallet
                     INNER JOIN
@@ -28,10 +27,10 @@ class Controller extends BaseController
                     ON 
                         wallet.id = wallet_transaction.wallet_id
                     where user_id ='.$id.'
-                    GROUP BY wallet.id,wallet_id,wallet.begin_balance,wallet.ending_balance,credit,debit
+                    GROUP BY wallet.id,wallet_id,wallet.begin_balance,wallet.ending_balance,amount
         ');
         if(!empty($saldo)){
-            $end_balance = $saldo[0]->begin_balance + $saldo[0]->debit + $saldo[0]->credit;
+            $end_balance = $saldo[0]->begin_balance + $saldo[0]->amount;
         } else{
             $end_balance = 0;
         }

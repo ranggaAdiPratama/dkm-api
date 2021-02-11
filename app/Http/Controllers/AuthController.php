@@ -14,7 +14,7 @@ class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login','register']]);
+        $this->middleware('auth:api', ['except' => ['login','register','getPhoto']]);
     }
 
     /**
@@ -35,14 +35,14 @@ class AuthController extends Controller
             'phone' => 'required',
             'address' => 'required',
         ]);
-
         if ($request->hasFile('photo')) 
         { 
             $fileExtension = $request->file('photo')->getClientOriginalName(); 
             $file = pathinfo($fileExtension, PATHINFO_FILENAME); 
             $extension = $request->file('photo')->getClientOriginalExtension();
             $fileStore = $file . '_' . time() . '.' . $extension; 
-            $path = $request->file('photo')->storeAs('photos',$fileStore); }
+            $path = $request->file('photo')->storeAs('photos',$fileStore); 
+        }
         try 
         {
             $user = new User;
@@ -57,7 +57,7 @@ class AuthController extends Controller
                 $profile->user_id = $user->id;
                 $profile->phone = $request->input('phone');
                 $profile->address = $request->input('address');
-                $profile->photo = 'http://192.168.18.60:8000/storage/app/photos/'.$fileStore;
+                $profile->photo = $fileStore;
                 $profile->save();
             }
             
@@ -159,6 +159,20 @@ class AuthController extends Controller
             return response()->json(['data' => $data], 200);
         }
         return response()->json('Data Tidak Ditemukan');
+    }
+
+    public function getPhoto($name)
+    {
+        $avatar_path = storage_path('app\photos') . '/' .$name.'.jpg';
+
+        if (file_exists($avatar_path)) {
+            $file = file_get_contents($avatar_path);
+            return response($file, 200)->header('Content-Type', 'image/jpeg');
+          }
+           $res['success'] = false;
+           $res['message'] = "Avatar not found";
+          
+          return $res;
     }
 
     
