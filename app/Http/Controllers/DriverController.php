@@ -175,31 +175,28 @@ class DriverController extends Controller
                     ->where('id',$id)
                     ->get();
         $data = array();
+        $data_amount = array();
         if(!empty($getData)){
             $ending_balance = [];
             foreach($getData as $val){
-                // if($ending_balance[0] == 0){
-                //     $start =array($val->begin_balance + $val->debit + $val->credit); 
-                //     array_replace($ending_balance,$start);
-                // }else {
-                //     $ending = array($ending_balance[0] + $val->debit + $val->credit) ;
-                //     array_replace($ending_balance,$ending); 
-                // }
+                $amount = intval($val->amount);
+                array_push($data_amount,$amount);
                 $arr = array(
                     // 'driver_id' => $val->id,
                     // 'begin_balance' =>s,
                     'amount' => intval($val->amount),
-                    
                     'description' => $val->description,
-                    'ending_balance' => $begin_balance[0]->begin_balance + $val->amount 
                 );
                 $end = $begin_balance[0]->begin_balance + $val->amount;
-                array_replace($ending_balance,$end);
+                array_replace(array($ending_balance),array($end));
                 array_push($data,$arr);
             }
+
+            // return(array_sum($data_amount));
             return response()->json([
                 'begin_balance' => $begin_balance[0]->begin_balance,
-                'data' => $data
+                'data' => $data,
+                'ending_balance' => $begin_balance[0]->begin_balance + array_sum($data_amount)
                 ]);
         }
         return response()->json('Data Not Found', 204);

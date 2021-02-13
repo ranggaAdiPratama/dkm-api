@@ -51,9 +51,31 @@ class OrderController extends Controller
     public function pickupList()
     {
         $id  = auth()->user()->id;
-
         $getOrder = DB::table('pickup_list')
                             ->where('driver_id_pickup',$id)
+                            ->get();
+        // return $getOrder;
+        $data = array();
+        
+        if (!empty($getOrder)){
+            foreach ($getOrder as $val) {
+                $date = date_create($val->created_at);
+                $arr = array(
+                    'user_id' => intval($val->user_id),
+                    'sender_name' => $val->sender_name,
+                    'tanggal_order' => date_format($date,"d-M-Y")
+                );
+                array_push($data,$arr);
+            }
+        return response()->json(['data' => $data], 200);
+        }
+    }
+    
+    public function orderList($id)
+    {
+        $id_driver = auth()->user()->id;
+        $getOrder = DB::table('pickup_list')
+                            ->where('driver_id_pickup',$id_driver)
                             ->get();
        
         // $getData = DB::table('pickup_detail_list')
@@ -65,8 +87,8 @@ class OrderController extends Controller
             foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
                 $detail_order = DB::table('pickup_detail_list') 
-                                ->where('driver_id_pickup', $id)
-                                ->where('user_id',$val->user_id)
+                                ->where('driver_id_pickup', $id_driver)
+                                ->where('user_id',$id)
                                 ->get();
                 $detailArr = array() ;
                 $total_delivery_fee = array();
@@ -75,6 +97,7 @@ class OrderController extends Controller
             if(!empty($detail_order)){
                 foreach ($detail_order as $val) {
                     $array = array(
+                    'id_order' => intval($val->id),    
                     'no_order' => 'ID#'.'000'.$val->no_order,
                     'delivery_fee' => intval($val->delivery_fee) ,
                     'name' => $val->name,
@@ -111,7 +134,7 @@ class OrderController extends Controller
                     'village' => $val->village,
                     'latitude' => $val->latitude,
                     'longitude' => $val->longitude,
-                    // 'status' => $val->status,x
+                    'status' => $val->status,
                     'list_orders' => $detailArr,
                     'total_deliv_fee' => array_sum($total_delivery_fee),
                     'total_price' => array_sum($total_price),
@@ -123,54 +146,49 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json(['data' => $data], 200);
-    }
+        return response()->json(['data' => $data[0]], 200);
+        }
 
-    public function pickupShow(Request $request)
+    public function orderListDetail($id)
     {
-        $id  = auth()->user()->id;
-        $cust_id = $request->input('id');
+        $detail_order = DB::table('pickup_detail_list') 
+        ->where('id',$id)
+        ->get();
 
-        $data = array();
-        
-                $detail_order = DB::table('pickup_detail_list') 
-                                ->where('driver_id_pickup', $id)
-                                ->where('user_id',$cust_id)
-                                ->get();
-                $detailArr = array() ;
-                $total_delivery_fee = array();
-                $total_price = array();
-                $total = array();
-                
-            if(!empty($detail_order)){
-                foreach ($detail_order as $val) {
-                    $array = array(
-                    'no_order' => 'ID#'.'000'.$val->no_order,
-                    'delivery_fee' => intval($val->delivery_fee) ,
-                    'name' => $val->name,
-                    'price' => intval($val->price),
-                    'description' => $val->description,
-                    'weight' => intval($val->weight),
-                    'volume' => intval($val->volume),
-                    'photo' => $val->photo,
-                    'receiver_name' => $val->receiver,
-                    'receiver_phone' => $val->phone,
-                    'method' => $val->method,
-                    'status' => $val->status,
-                    'deliv_address' => $val->address,
-                    // 'desc_add' => $val->desc_add,
-                    'latitude' => $val->latitude,
-                    'longitude' => $val->longitude,
-                    // 'sender_name' => $val->sender_name,
-                    // 'sender_phone' => $val->sender_phone,
-                    'subtotal' => $val->delivery_fee + $val->price
-                    );
-                    array_push($data,$array);
-                }
-       
-            }
-
-        return response()->json(['data' => $data], 200);
+        $detailArr = array() ;
+        $total_delivery_fee = array();
+        $total_price = array();
+        $total = array();
+        foreach ($detail_order as $val) {
+            $array = array(
+            'id_order' => intval($val->id),    
+            'no_order' => 'ID#'.'000'.$val->no_order,
+            'delivery_fee' => intval($val->delivery_fee) ,
+            'name' => $val->name,
+            'price' => intval($val->price),
+            'description' => $val->description,
+            'weight' => intval($val->weight),
+            'volume' => intval($val->volume),
+            'photo' => $val->photo,
+            'receiver_name' => $val->receiver,
+            'receiver_phone' => $val->phone,
+            'method' => $val->method,
+            'status' => $val->status,
+            'deliv_address' => $val->address,
+            // 'desc_add' => $val->desc_add,
+            'latitude' => $val->latitude,
+            'longitude' => $val->longitude,
+            // 'sender_name' => $val->sender_name,
+            // 'sender_phone' => $val->sender_phone,
+            'subtotal' => $val->delivery_fee + $val->price
+            );
+   
+            array_push($detailArr,$array);
+        }
+        return response()->json([
+            'detail' => $detailArr[0],
+           
+        ], 200);
     }
 
     public function pickupStatus(Request $request)

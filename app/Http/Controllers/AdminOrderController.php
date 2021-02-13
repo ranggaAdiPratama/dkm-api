@@ -111,23 +111,34 @@ class AdminOrderController extends Controller
      */
     public function create(Request $request)
     {
+        $id = auth()->user()->id;
         $numb = rand(0,999999);
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
         $district = $request->input('district');
-
-        $driver = DB::select('
-                    SELECT
-                    user_id
-                    FROM
-                    drivers
-                    WHERE
-                    drivers.placement_district = '.$district.'
-                    ORDER BY
-                    drivers.total_orders ASC
-                    LIMIT 1
-                            ');
-        return $driver;
+        $payment_id = DB::table('payments')->insertGetId([
+            'user_id' => $id,
+            'status' => 1
+        ]);
+        $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->get();
+        if(count($checkCust) == 0 ){
+            $getDriver = DB::select('
+                                SELECT
+                                user_id
+                                FROM
+                                drivers
+                                WHERE
+                                drivers.placement_district = '.$district.'
+                                ORDER BY
+                                drivers.total_orders ASC
+                                LIMIT 1
+                                ');
+        }
+        else
+        {
+            $getDriver = $checkCust;
+        }
+        $driver =  $getDriver[0]->user_id;
         $this->validate($request, [
             'name'  => 'required',
             'weight' => 'required',
@@ -135,12 +146,33 @@ class AdminOrderController extends Controller
             'price' => 'required'
             // 'photo' => 'required|image',
         ]);
-    $order = new Order;
-    $order->user_id = auth()->user()->id;
-    $order->no_order = $code;
-    $order->order_statuses_id = 1 ;
-    $order->driver_id_pickup;
-   
+        $order = new Order;
+        $order->user_id = $id ;
+        $order->no_order = $code;
+        $order->order_statuses_id = 1 ;
+        $order->driver_id_pickup = $driver;
+        $order->payment_id = $payment_id;
+        $order->pickup_status = 0;
+        $order->save();
+        $id_order = $order->id;
+
+        $detail = DB::table('order_details')->insertGetId([
+            'orders_id' => $id_order,
+            'name' => $request->input('name'),
+            'price' => $request->input('price'),
+            'description_order' => $request->input('description'),
+            'weight' => $request->input('weight'),
+            'volume' => $request->input('volume'),
+            'receiver_name' => $request->input('receiver'),
+            'receiver_phone' => $request->input('phone'),
+            'district' => $request->input('district'),
+            'description_address' => $request->input('description_address'),
+            'receiver_phone' => $request->input('receiver_phone'),
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            '' => $request->input('')
+        ]);
+ 
     }
 
     public function status(Request $request)
