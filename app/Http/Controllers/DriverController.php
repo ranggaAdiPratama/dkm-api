@@ -151,7 +151,7 @@ class DriverController extends Controller
         if(!empty($getData)){
             foreach($getData as $val){
                 $arr = array(
-                    'driver_id' => $val->id,
+                    'wallet_id' => $val->id_wallet,
                     'driver_name' => $val->name,
                     'begin_balance' =>$val->begin_balance,
                     'amount' => $val->amount,
@@ -179,13 +179,16 @@ class DriverController extends Controller
         if(!empty($getData)){
             $ending_balance = [];
             foreach($getData as $val){
+                $date = date_create($val->created_at);
                 $amount = intval($val->amount);
                 array_push($data_amount,$amount);
                 $arr = array(
                     // 'driver_id' => $val->id,
-                    // 'begin_balance' =>s,
-                    'amount' => intval($val->amount),
+                    'date' =>date_format($date, 'd-M-Y'),
                     'description' => $val->description,
+                    'type' => $val->type,
+                    'amount' => intval($val->amount),
+                    
                 );
                 $end = $begin_balance[0]->begin_balance + $val->amount;
                 array_replace(array($ending_balance),array($end));

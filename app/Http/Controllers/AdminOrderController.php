@@ -18,7 +18,7 @@ class AdminOrderController extends Controller
             foreach($getData as $val){
                 $arr = array(
                     'id' => $val->id,
-                    'no_order' => 'ID#000'.$val->no_order,
+                    'no_order' => '#'.$val->no_order,
                     'client' => $val->name,
                     'delivery_fee' => $val->delivery_fee,
                     'order_status' => $val->order_status,
@@ -41,7 +41,7 @@ class AdminOrderController extends Controller
             foreach($getData as $val){
                 $arr = array(
                     'id' => $val->id,
-                    'no_order' => 'ID#000'.$val->no_order,
+                    'no_order' => '#'.$val->no_order,
                     'client' => $val->name,
                     'delivery_fee' => $val->delivery_fee,
                     'order_status' => $val->order_status,
@@ -64,7 +64,7 @@ class AdminOrderController extends Controller
             foreach($getData as $val){
                 $arr = array(
                     'id' => $val->id,
-                    'no_order' => 'ID#000'.$val->no_order,
+                    'no_order' => '#'.$val->no_order,
                     'client' => $val->name,
                     'delivery_fee' => $val->delivery_fee,
                     'order_status' => $val->order_status,
@@ -88,7 +88,7 @@ class AdminOrderController extends Controller
             foreach($getData as $val){
                 $arr = array(
                     'id' => $val->id,
-                    'no_order' => 'ID#000'.$val->no_order,
+                    'no_order' => '#'.$val->no_order,
                     'client' => $val->name,
                     'delivery_fee' => $val->delivery_fee,
                     'order_status' => $val->order_status,
@@ -104,41 +104,56 @@ class AdminOrderController extends Controller
         return response()->json(['data' => $data]);
     }
 
-     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    public function canceledList()
+    {
+        $getData = DB::table('list_orders_cancel')->get();
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => '#'.$val->no_order,
+                    'client' => $val->name,
+                    'delivery_fee' => $val->delivery_fee,
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
+
+        return response()->json(['data' => $data]);
+    }
+
+    public function returnList()
+    {
+        $getData = DB::table('list_orders_return')->get();
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => '#'.$val->no_order,
+                    'client' => $val->name,
+                    'delivery_fee' => $val->delivery_fee,
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
+
+        return response()->json(['data' => $data]);
+    }
+
     public function create(Request $request)
     {
-        $id = auth()->user()->id;
-        $numb = rand(0,999999);
-        $date = str_shuffle(date('dY'));
-        $code = substr($numb + $date, 0, 6);
-        $district = $request->input('district');
-        $payment_id = DB::table('payments')->insertGetId([
-            'user_id' => $id,
-            'status' => 1
-        ]);
-        $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->get();
-        if(count($checkCust) == 0 ){
-            $getDriver = DB::select('
-                                SELECT
-                                user_id
-                                FROM
-                                drivers
-                                WHERE
-                                drivers.placement_district = '.$district.'
-                                ORDER BY
-                                drivers.total_orders ASC
-                                LIMIT 1
-                                ');
-        }
-        else
-        {
-            $getDriver = $checkCust;
-        }
-        $driver =  $getDriver[0]->user_id;
         $this->validate($request, [
             'name'  => 'required',
             'weight' => 'required',
@@ -146,11 +161,72 @@ class AdminOrderController extends Controller
             'price' => 'required'
             // 'photo' => 'required|image',
         ]);
+        $id = auth()->user()->id;
+        $numb = rand(0,999999);
+        $date = str_shuffle(date('dY'));
+        $code = substr($numb + $date, 0, 6);
+        $district = $request->input('district');
+        $price = $request->input('price');
+
+        //Create Payment
+        $payment_id = DB::table('payments')->insertGetId([
+            'user_id' => $id,
+            'status' => 1,
+            'price' => $price,
+            'payment_method_id' => $request->input('payment_method')
+        ]);
+
+        //Create Delivery Address
+        $deliv_address = DB::table('delivery_addresses')->insertGetId([
+            'address' =>   $request->input('receiver_addres'),
+            'description' =>  $request->input('description_address'),
+            'district' =>  $request->input('district'),
+            'latitude' => $request->input('latitude'),
+            'longitude' =>  $request->input('longitude')
+        ]);
+
+        //Get Delivery Fee List
+        $del_fee_list = DB::table('delivery_fee_list')->get();
+
+        //Check Delivery List
+        $w = $request->input('weight');
+        if($del_fee_list !== null){
+            foreach($del_fee_list as $val){
+                if($w > $val->from_weight AND $w < $val->to_weight){
+                    $delivery_fee = $val->price;
+                }
+            }
+        } 
+
+
+        //Check Customer
+        $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->get();
+
+        //Assign Pickup Driver
+        if(count($checkCust) == 0 ){
+            $getDriver = DB::select('SELECT
+                                user_id
+                                FROM
+                                drivers
+                                WHERE
+                                drivers.placement_district = '.$district.'
+                                ORDER BY
+                                drivers.total_orders ASC
+                                LIMIT 1');
+        }
+        else
+        {
+            $getDriver = $checkCust;
+        }
+
+        $driver =  $getDriver[0]->user_id;
+
         $order = new Order;
         $order->user_id = $id ;
         $order->no_order = $code;
         $order->order_statuses_id = 1 ;
         $order->driver_id_pickup = $driver;
+        $order->delivery_address_id = $deliv_address;
         $order->payment_id = $payment_id;
         $order->pickup_status = 0;
         $order->save();
@@ -160,18 +236,21 @@ class AdminOrderController extends Controller
             'orders_id' => $id_order,
             'name' => $request->input('name'),
             'price' => $request->input('price'),
-            'description_order' => $request->input('description'),
+            'description' => $request->input('description_order'),
             'weight' => $request->input('weight'),
             'volume' => $request->input('volume'),
-            'receiver_name' => $request->input('receiver'),
-            'receiver_phone' => $request->input('phone'),
-            'district' => $request->input('district'),
-            'description_address' => $request->input('description_address'),
-            'receiver_phone' => $request->input('receiver_phone'),
-            'latitude' => $request->input('latitude'),
-            'longitude' => $request->input('longitude'),
-            '' => $request->input('')
+            'receiver' => $request->input('receiver_name'),
+            'phone' => $request->input('receiver_phone'),
+            'description' => $request->input('description_address'),
+            'delivery_fee' => $delivery_fee
         ]);
+
+        if(!empty($detail)){
+            return response()->json("Order berhasil di buat", 200);
+        }
+
+        return response()->json("Order gagal di buat");
+
  
     }
 

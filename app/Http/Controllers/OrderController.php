@@ -30,7 +30,7 @@ class OrderController extends Controller
                                     order_details.receiver, 
                                     order_details.phone, 
                                     order_details.delivery_fee
-                                FROM
+                                    FROM
                                     orders
                                     INNER JOIN
                                     order_details
