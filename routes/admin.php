@@ -1,8 +1,8 @@
 <?php
 Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth','role']], function ()  {
     Route::get('order/pickup','AdminOrderController@index');
-    Route::get('order/finish-pickup','AdminOrderController@finishPickupList');
-    Route::get('order/ready-to-deliver','AdminOrderController@readyToDeliveryList');
+    Route::get('order/picked-up','AdminOrderController@finishPickupList');
+    Route::get('order/delivery-assigned','AdminOrderController@readyToDeliveryList');
     Route::get('order/delivered','AdminOrderController@deliveredList');
     Route::get('order/canceled','AdminOrderController@canceledList');
     Route::get('order/return','AdminOrderController@returnList');

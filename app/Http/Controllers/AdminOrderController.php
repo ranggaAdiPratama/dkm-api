@@ -12,7 +12,7 @@ class AdminOrderController extends Controller
    //Order
     public function index()
     {
-      $getData = DB::table('list_orders_before_pickup')->get();
+      $getData = DB::table('list_orders_pickingup')->get();
         $data = [];
         if(!empty($getData)){
             foreach($getData as $val){
@@ -35,18 +35,28 @@ class AdminOrderController extends Controller
 
     public function finishPickupList()
     {
-        $getData = DB::table('list_orders_finish_pickup')->get();
+        $getData = DB::table('list_orders_pickedup')->get();
         $data = [];
         if(!empty($getData)){
             foreach($getData as $val){
+                $date = date_create($val->order_date); 
                 $arr = array(
                     'id' => $val->id,
                     'no_order' => '#'.$val->no_order,
                     'client' => $val->name,
+                    'date' => date_format($date,'d-M-y') ,
                     'delivery_fee' => $val->delivery_fee,
                     'order_status' => $val->order_status,
                     'payment_status' => $val->payment_status,
-                    'payment_method' => $val->method
+                    'payment_method' => $val->method,
+                    'sender_address' => $val->sender_address,
+                    'sender_phone' => $val->sender_phone,
+                    'receiver_name' => $val->receiver_name,
+                    'receiver_phone' => $val->receiver_phone,
+                    'receiver_address' => $val->receiver_address,
+                    'price' => $val->price,
+                    'total' => $val->price + $val->delivery_fee
+                   
                 );
                 array_push($data,$arr);
             }

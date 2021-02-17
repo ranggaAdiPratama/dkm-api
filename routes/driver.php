@@ -7,8 +7,8 @@ Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','rol
     Route::get('/pickup/order-detail/{id}','OrderController@orderListDetail');
     Route::post('/pickup/status','OrderController@pickupStatus');
     Route::get('/delivery','OrderController@deliveryList');
-    Route::get('/delivery/history','OrderController@deliveryHistory');  
-    Route::get('/delivery/{id}','OrderController@deliveryShow');
+    Route::get('/delivery/order-list/{id}','OrderController@DeliveryOrderList');  
+    Route::get('/delivery/order-detail/{id}','OrderController@deliveryShow');
     Route::post('/delivery/status','OrderController@deliveryStatus');
     Route::get('/get-district','OrderController@getProvinsi');
     Route::get('/get-village','OrderController@getProvinsi');
