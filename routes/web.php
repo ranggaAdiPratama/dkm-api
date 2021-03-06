@@ -10,6 +10,7 @@ $router->get('/', function () use ($router){
 Route::group(['prefix' => 'auth'], function () use ($router) 
 {
    Route::post('register','AuthController@register');
+   Route::post('update','AuthController@update');
    Route::post('login', 'AuthController@login');
    Route::get('logout', 'AuthController@logout');
    Route::get('user', 'AuthController@me');
@@ -38,6 +39,8 @@ include 'admin.php';
 include 'customer.php';
 
 Route::get('/photo/{name}','AuthController@getPhoto');
+Route::get('/photo/product/{name}','AuthController@getPhotoProduct');
+Route::post('testInsert','OrderController@testInsert');
 
 
 

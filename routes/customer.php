@@ -5,4 +5,5 @@ Route::group(['prefix' => 'customer','as' => 'customer' ,'middleware' =>['auth',
     Route::get('district-list','ApiRegionController@getDistrict');
     Route::get('villages-list/{id}','ApiRegionController@getVillage');
     Route::post('order','OrderController@create');
+    Route::get('/','OrderController@customer');
 });

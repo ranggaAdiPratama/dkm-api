@@ -15,9 +15,6 @@ class RolesAuth
      */
     public function handle($request, Closure $next)
     {
-        // Pre-Middleware Action
-
-        $response = $next($request);
         
         // get user role permissions
         $role = auth()->user()->role_id;

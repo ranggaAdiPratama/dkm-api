@@ -25,7 +25,7 @@ class Controller extends BaseController
                     INNER JOIN
                     wallet_transaction
                     ON 
-                        wallet.id = wallet_transaction.wallet_id
+                    wallet.id = wallet_transaction.wallet_id
                     where user_id ='.$id.'
                     GROUP BY wallet.id,wallet_id,wallet.begin_balance,wallet.ending_balance,amount
         ');
@@ -38,7 +38,7 @@ class Controller extends BaseController
         
         return response()->json([
             'token' => $token,
-            // 'expires_in' => null,
+            'expires_in' => Auth::factory()->getTTL() * 180,
             'users' => array(
                 'id' => intval($profile[0]->id),
                 'name' => $profile[0]->name,
@@ -46,6 +46,9 @@ class Controller extends BaseController
                 'password' => $profile[0]->password,
                 'role_id' => intval($profile[0]->role_id),
                 'phone' => $profile[0]->phone,
+                'phone2' => $profile[0]->phone2,
+                'district' => $profile[0]->district_id,
+                'village' => $profile[0]->village_id,
                 'address' => $profile[0]->address,
                 'photo' =>$profile[0]->photo,
                 'saldo' =>$end_balance
