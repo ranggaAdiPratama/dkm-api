@@ -952,8 +952,14 @@ public function ReturnOrderDetail($id)
             'name'  => 'required',
             'weight' => 'required',
             'volume' =>'required',
-            'price' => 'required'
-            // 'photo' => 'required|image',
+            'price' => 'required',
+            'payment_method' => 'required',
+            'description_address' => 'required',
+            'receiver_name' => 'required',
+            'receiver_phone' => 'required',
+            'district' => 'required',
+            'village' => 'required'
+
         ]);
         if($request->input('user_id') == null){
             $id = auth()->user()->id;  
@@ -976,7 +982,7 @@ public function ReturnOrderDetail($id)
             $img = 'http://192.168.18.60:8000/photo/product/'. base64_encode($fileStore);
             $path = $request->file('photo')->storeAs('photo/product',$fileStore); 
         } else{
-            $img = 'https://cdn.medcom.id/dynamic/content/2018/12/31/971006/BNMY2dwu0a.jpg?w=700';
+            $img = 'photo/product/bm8tdGh1bWJuYWlsXzE2MTQwNTIwNjMuanBn';
         }
 
         //Create Payment
@@ -1043,6 +1049,7 @@ public function ReturnOrderDetail($id)
             'volume' => $request->input('volume'),
             'receiver' => $request->input('receiver_name'),
             'phone' => $request->input('receiver_phone'),
+            'phone2' => $request->input('receiver_phone2'),
             'description' => $request->input('description_address'),
             'delivery_fee' => $delivery_fee,
             'photo' => $img
@@ -1075,10 +1082,5 @@ public function ReturnOrderDetail($id)
             ], 200);
         }
         return response()->json('Data Tidak Ditemukan');
-    }
-
-
-
-
-   
+    }   
 }

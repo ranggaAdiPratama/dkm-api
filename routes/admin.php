@@ -11,7 +11,7 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], fun
     Route::get('order/history','AdminOrderController@orderHistory');
     Route::get('order/detail/{no_order}','AdminOrderController@detailOrder');
     Route::get('order/edit/{no_order}','AdminOrderController@editOrder');
-    Route::get('order/show/{no_order}','AdminOrderController@show');
+    
     Route::post('order/update','AdminOrderController@updateOrder');
     Route::post('status','AdminOrderController@status');
     Route::post('order','AdminOrderController@createOrder');
@@ -39,3 +39,5 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], fun
     Route::get('user/area','AdminOrderController@area');
     
 });
+
+Route::get('admin/order/show/{no_order}','AdminOrderController@show');

@@ -12,7 +12,7 @@ class AdminOrderController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role');
+        $this->middleware('role',['except' => ['show']]);
     }
 
    //Order
@@ -583,13 +583,14 @@ class AdminOrderController extends Controller
     {
         $order = DB::table('list_orders_pickedup')->where('no_order',$no_order)->first();
         if(!empty($order)){
-        $date = date_create($order->order_date);
+        $date = date_create($order->order_date);    
         $data = array(
                     'id' => intval($order->id),
                     'no_order' => $order->no_order,
                     'client' => $order->name,
                     'date' => date_format($date,'d-M-y') ,
                     'delivery_fee' => intval($order->delivery_fee),
+                    'product_name' => $order->product_name,
                     'order_status' => $order->order_status,
                     'payment_status' => $order->payment_status,
                     'payment_method' => $order->method,
@@ -598,6 +599,7 @@ class AdminOrderController extends Controller
                     'receiver_name' => $order->receiver_name,
                     'receiver_phone' => $order->receiver_phone,
                     'receiver_address' => $order->receiver_address,
+                    'receiver_district' => $order->receiver_district,
                     'price' => intval($order->price),
                     'total' => $order->price + $order->delivery_fee,
                     'driver_name' => $order->driver_name

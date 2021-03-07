@@ -70,7 +70,7 @@ class AuthController extends Controller
                 $profile->address = $request->input('address');
                 $profile->district_id = $request->input('district_id');
                 $profile->village_id = $request->input('village_id');
-                $profile->photo = 'https://img2.pngdownload.id/20180402/ojw/kisspng-united-states-avatar-organization-information-user-avatar-5ac20804a62b58.8673620215226654766806.jpg';
+                $profile->photo = 'photo/dW5uYW1lZF8xNjE0ODI2MzU1LmpwZw==';
                 $profile->save();
             }
             
@@ -119,6 +119,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
         $currentUser = Auth::user();
+        $token = auth()->setTTL(7200)->attempt($credentials);
         return $this->respondWithToken($token, $currentUser);
     }
 	
@@ -133,20 +134,47 @@ class AuthController extends Controller
         
         $id = auth()->user()->id;
         // dd($id);
-        $data = User::join('user_profiles as up','users.id','up.user_id')
-                        ->select(
-                            'users.id',
-                            'users.name',
-                            'users.email',
-                            'users.created_at',
-                            'up.phone',
-                            'up.photo',
-                            'up.address'
-                            )
+        $profile = User::join('user_profiles as up','users.id','up.user_id')
                         ->where('users.id',$id)
-                        ->get();
+                        ->first();
+        $saldo = DB::select('
+                        SELECT
+                        wallet.id, 
+                        wallet_transaction.wallet_id,   
+                        wallet.begin_balance, 
+                        wallet.ending_balance, 
+                        sum(wallet_transaction.amount) as amount
+                        FROM
+                        wallet
+                        INNER JOIN
+                        wallet_transaction
+                        ON 
+                        wallet.id = wallet_transaction.wallet_id
+                        where user_id ='.$id.'
+                        GROUP BY wallet.id,wallet_id,wallet.begin_balance,wallet.ending_balance,amount
+            ');
+            if(!empty($saldo)){
+                $end_balance = $saldo[0]->begin_balance + $saldo[0]->amount;
+            } else{
+                $end_balance = 0;
+            }
 
-        return response()->json($data);
+        return response()->json([
+            'data' =>  array(
+            'id' => intval($profile->id),
+            'name' => $profile->name,
+            'email' => $profile->email,
+            'password' => $profile->password,
+            'role_id' => intval($profile->role_id),
+            'phone' => $profile->phone,
+            'phone2' => $profile->phone2,
+            'district' => $profile->district_id,
+            'village' => $profile->village_id,
+            'address' => $profile->address,
+            'photo' =>$profile->photo,
+            'saldo' =>$end_balance
+        )
+        ]);
     }
 
     public function logout()
@@ -211,7 +239,6 @@ class AuthController extends Controller
          $this->validate($request, [
              'name'  => 'required|string',
              'email' => 'required|email',
-             'role_id' =>'required',
              'phone' => 'required',
              'address' => 'required',
          ]);
@@ -223,8 +250,8 @@ class AuthController extends Controller
              $fileStore = $file . '_' . time() . '.' . $extension; 
              $img ='http://192.168.18.60:8000/photo/product'. base64_encode($fileStore);
              $path = $request->file('photo')->storeAs('photos',$fileStore); 
-         }else{ 
-             $img = 'http://192.168.18.60:8000/photo/YXZhdGFyXzE2MTM4NzQ3NzlfMTYxNDA2NDQ2Mi5qcGc=';
+         }else{
+             $img = null;
          }
          try 
          {
@@ -232,12 +259,12 @@ class AuthController extends Controller
                         ->Update([
                             'name' => $request->input('name'),
                             'email' => $request->input('email'),
-                            'role_id' => $request->input('role_id'),
+                            'role_id' => $request->input('role_id')
                         ]);
-            
             $userProfile = UserProfile::where('user_id',$id)
                                     ->update([
                                         'phone' => $request->input('phone'),
+                                        'phone2' => $request->input('phone2'),
                                         'district_id' => $request->input('district_id'),
                                         'village_id' => $request->input('village_id'),
                                         'address' => $request->input('address'),
@@ -245,7 +272,7 @@ class AuthController extends Controller
                                     ]);
  
              return response()->json( [
-                         'entity' => 'Users Created Successfully', 
+                         'entity' => 'Users Updated Successfully', 
              ], 201);
  
          } 
