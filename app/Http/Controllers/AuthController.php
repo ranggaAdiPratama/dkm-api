@@ -14,7 +14,7 @@ class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login','register','getPhoto','getPhotoProduct']]);
+        $this->middleware('auth:api', ['except' => ['login','register','getPhoto','getPhotoProduct','refresh']]);
     }
 
     /**
@@ -70,7 +70,7 @@ class AuthController extends Controller
                 $profile->address = $request->input('address');
                 $profile->district_id = $request->input('district_id');
                 $profile->village_id = $request->input('village_id');
-                $profile->photo = 'photo/dW5uYW1lZF8xNjE0ODI2MzU1LmpwZw==';
+                $profile->photo = 'photo/YXZhdGFyXzE2MTM4NzQ3NzlfMTYxNDA2NDQ2Mi5qcGc=';
                 $profile->save();
             }
             
@@ -178,10 +178,25 @@ class AuthController extends Controller
     }
 
     public function logout()
-    {
+    {   
         $logout = Auth::logout(true);
         return "Logout Berhasil";
     }
+
+    public function refresh()
+    {   
+        $currentUser = Auth::user();
+        $newToken = auth()->refresh(true, true);
+        return $this->respondWithToken($newToken, $currentUser);
+    }
+
+    /**
+     * Get the token array structure.
+     *
+     * @param  string $token
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
 
     public function roleList()
     {
@@ -250,8 +265,6 @@ class AuthController extends Controller
              $fileStore = $file . '_' . time() . '.' . $extension; 
              $img ='http://192.168.18.60:8000/photo/product'. base64_encode($fileStore);
              $path = $request->file('photo')->storeAs('photos',$fileStore); 
-         }else{
-             $img = null;
          }
          try 
          {
@@ -261,6 +274,8 @@ class AuthController extends Controller
                             'email' => $request->input('email'),
                             'role_id' => $request->input('role_id')
                         ]);
+        if ($request->hasFile('photo')) 
+        { 
             $userProfile = UserProfile::where('user_id',$id)
                                     ->update([
                                         'phone' => $request->input('phone'),
@@ -270,6 +285,18 @@ class AuthController extends Controller
                                         'address' => $request->input('address'),
                                         'photo' => $img
                                     ]);
+        }else{
+            { 
+                $userProfile = UserProfile::where('user_id',$id)
+                                        ->update([
+                                            'phone' => $request->input('phone'),
+                                            'phone2' => $request->input('phone2'),
+                                            'district_id' => $request->input('district_id'),
+                                            'village_id' => $request->input('village_id'),
+                                            'address' => $request->input('address'),
+                                        ]);
+            }
+        }
  
              return response()->json( [
                          'entity' => 'Users Updated Successfully', 

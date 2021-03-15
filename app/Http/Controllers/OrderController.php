@@ -341,7 +341,16 @@ class OrderController extends Controller
              ]);
 
          return response()->json('Data Successfully updated', 200);
-     }elseif($status !== 3){
+     }elseif($status == 7){
+        DB::table('return')->insert(['id_orders' => $id]);
+        Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+
+        return response()->json('Data Successfully updated', 200);
+       }elseif($status !== 3){
         Order::where('id',$id)
         ->update([
         'order_statuses_id' =>$status,    
@@ -679,7 +688,16 @@ class OrderController extends Controller
             
   
               return response()->json('Data Successfully updated', 200);
-         }elseif($status !== 4){
+         }elseif($status == 7){
+            DB::table('return')->insert(['id_orders' => $id]);
+            Order::where('id',$id)
+            ->update([
+            'order_statuses_id' =>$status,    
+    
+            ]);
+    
+            return response()->json('Data Successfully updated', 200);
+           }elseif($status !== 4){
           Order::where('id',$id)
           ->update([
           'order_statuses_id' =>$status,    
@@ -949,16 +967,16 @@ public function ReturnOrderDetail($id)
     public function createOrder(Request $request)
     {
         $this->validate($request, [
-            'name'  => 'required',
-            'weight' => 'required',
-            'volume' =>'required',
-            'price' => 'required',
-            'payment_method' => 'required',
-            'description_address' => 'required',
-            'receiver_name' => 'required',
-            'receiver_phone' => 'required',
-            'district' => 'required',
-            'village' => 'required'
+            // 'name'  => 'required',
+            // 'weight' => 'required',
+            // 'volume' =>'required',
+            // 'price' => 'required',
+            // 'payment_method' => 'required',
+            // 'description_address' => 'required',
+            // 'receiver_name' => 'required',
+            // 'receiver_phone' => 'required',
+            // 'district' => 'required',
+            // 'village' => 'required'
 
         ]);
         if($request->input('user_id') == null){
@@ -1017,17 +1035,18 @@ public function ReturnOrderDetail($id)
                                 drivers.district_placement = '.$district.'
                                 AND
                                 drivers.village_placement LIKE "%'.$request->input('village').'%"
+                                AND
+                                drivers.total_orders < 25
                                 ORDER BY
                                 drivers.total_orders ASC
-                                LIMIT 1');
+                                LIMIT 1')[0]->user_id;
         }
         else
         {
-            $getDriver = $checkCust;
+            $getDriver = $checkCust[0]->driver_id_pickup;
         }
 
-      
-        $driver =  $getDriver[0]->user_id;
+        $driver =  $getDriver;
 
         $order = new Order;
         $order->user_id = $id ;
@@ -1082,5 +1101,35 @@ public function ReturnOrderDetail($id)
             ], 200);
         }
         return response()->json('Data Tidak Ditemukan');
-    }   
+    }
+
+    public function orderListCustomer()
+    {
+        $id  = auth()->user()->id;
+        $data = DB::table('list_orders_customer')->where('user_id',$id)->get();
+
+        return response()->json($data);
+    }
+
+    public function finishReturn($id)
+    {
+        DB::table('return')->where('id_orders',$id)->update(['status'=> 1]);
+
+        return response()->json('Data Updated Successfully');
+    }
+
+    public function cancelStatus(Request $request)
+    {   
+      $id = $request->input('id');
+      $status = $request->input('status');
+      date_default_timezone_set('Asia/Bangkok');
+       $update = Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+        if($update){
+            return response()->json('Data Successfully updated', 200);
+        }
+    }
 }

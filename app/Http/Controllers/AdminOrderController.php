@@ -30,7 +30,8 @@ class AdminOrderController extends Controller
                     'order_status' => $val->order_status,
                     'payment_status' => $val->payment_status,
                     'driver_name' => $val->driver_name,
-                    'payment_method' => $val->method
+                    'payment_method' => $val->method,
+                    'payment_method_id' => $val->payment_method_id
                 );
                 array_push($data,$arr);
             }
@@ -124,6 +125,31 @@ class AdminOrderController extends Controller
 
         return response()->json(['data' => $data]);
     }
+    public function deliveredHistoryList()
+    {
+        $getData = DB::table('list_orders_delivered_history')->get();
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => '#'.$val->no_order,
+                    'client' => $val->name,
+                    'delivery_fee' => $val->delivery_fee,
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method,
+                    'pickup_driver' => $val->pickup_driver,
+                    'deliver_driver' => $val->deliver_driver
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
+
+        return response()->json(['data' => $data]);
+    }
 
     public function reDeliveryList()
     {
@@ -155,6 +181,30 @@ class AdminOrderController extends Controller
     public function canceledList()
     {
         $getData = DB::table('list_orders_cancel')->get();
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => '#'.$val->no_order,
+                    'client' => $val->name,
+                    'delivery_fee' => $val->delivery_fee,
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
+
+        return response()->json(['data' => $data]);
+    }
+
+    public function canceledHistoryList()
+    {
+        $getData = DB::table('list_orders_cancel_history')->get();
         $data = [];
         if(!empty($getData)){
             foreach($getData as $val){
@@ -248,6 +298,7 @@ class AdminOrderController extends Controller
             'address' =>   $request->input('receiver_address'),
             'description' =>  $request->input('description_address'),
             'district' =>  $request->input('district'),
+            'village' =>  $request->input('village'),
             'latitude' => $request->input('latitude'),
             'longitude' =>  $request->input('longitude')
         ]);
@@ -267,17 +318,18 @@ class AdminOrderController extends Controller
                                 drivers.district_placement = '.$district.'
                                 AND
                                 drivers.village_placement LIKE "%'.$request->input('village').'%"
+                                AND
+                                drivers.total_orders < 25
                                 ORDER BY
                                 drivers.total_orders ASC
-                                LIMIT 1');
+                                LIMIT 1')[0]->user_id;
         }
         else
         {
-            $getDriver = $checkCust;
+            $getDriver = $checkCust[0]->driver_id_pickup;
         }
 
-      
-        $driver =  $getDriver[0]->user_id;
+        $driver =  $getDriver;
 
         $order = new Order;
         $order->user_id = $id ;
@@ -347,20 +399,83 @@ class AdminOrderController extends Controller
                      'order_statuses_id' =>$val['status'],
                      'pickup_at' => date('Y-m-d H:i:s')
                      ]);
-            }elseif($val['status'] == 3){
-             Order::where('id',intval($val['id']))
+            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] = 1 ){
+            $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+            $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
+            $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
+            $debit = DB::table('wallet_transaction')
+                        ->insert([
+                            'wallet_id' => $wallet_id[0]->id,
+                            'type' => 'debit',
+                            'description' => 'Talangan Barang',
+                            'amount' => -$getAmount[0]->price 
+                            ]);
+            $credit = DB::table('wallet_transaction')
+            ->insert([
+                'wallet_id' => $wallet_id[0]->id,
+                'type' => 'credit',
+                'description' => 'Ongkir',
+                'amount' => $getAmount[0]->delivery_fee
+                ]);
+            Order::where('id',intval($val['id']))
              ->update([
                 'pickup_status' => 1 ,
                 'order_statuses_id' =>$val['status'],
+                'bailout_id' => $val['bailout'],
                 'pickup_at' => date('Y-m-d H:i:s')  
              ]);
-            }elseif($val['status'] == 4){
+            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] = 2 ){
+                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
+                $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
+                $debit = DB::table('wallet_transaction')
+                            ->insert([
+                                'wallet_id' => $wallet_id[0]->id,
+                                'type' => 'debit',
+                                'description' => 'Talangan Barang',
+                                'amount' => -$getAmount[0]->price 
+                                ]);
+                Order::where('id',intval($val['id']))
+                 ->update([
+                    'pickup_status' => 1 ,
+                    'order_statuses_id' =>$val['status'],
+                    'bailout_id' => $val['bailout'],
+                    'pickup_at' => date('Y-m-d H:i:s')  
+                 ]);
+                }elseif($val['status'] == 4){
                 Order::where('id',intval($val['id']))
                 ->update([
                    'order_statuses_id' =>$val['status'],
+                   'driver_id_deliver' =>$val['driver'],
                    'pickup_at' => date('Y-m-d H:i:s')  
                 ]);
-            }elseif($val['status'] == 5){
+            }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] = 3 ){
+                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
+                $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
+                $debit = DB::table('wallet_transaction')
+                            ->insert([
+                                'wallet_id' => $wallet_id[0]->id,
+                                'type' => 'debit',
+                                'description' => 'Talangan Barang',
+                                'amount' => -$getAmount[0]->price 
+                                ]);
+                Order::where('id',intval($val['id']))
+                 ->update([
+                    'pickup_status' => 1 ,
+                    'order_statuses_id' =>$val['status'],
+                    'bailout_id' => $val['bailout'],
+                    'pickup_at' => date('Y-m-d H:i:s')  
+                 ]);
+                }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] = 4 ){
+                    Order::where('id',intval($val['id']))
+                     ->update([
+                        'pickup_status' => 1 ,
+                        'order_statuses_id' =>$val['status'],
+                        'bailout_id' => $val['bailout'],
+                        'pickup_at' => date('Y-m-d H:i:s')  
+                     ]);
+                    }elseif($val['status'] == 5){
                 Order::where('id',intval($val['id']))
                 ->update([
                    'order_statuses_id' =>$val['status'],
@@ -373,6 +488,7 @@ class AdminOrderController extends Controller
                 ]);
                }
             elseif($val['status'] == 7){
+                DB::table('return')->insert(['id_orders' => intval($val['id'])]);
                 Order::where('id',intval($val['id']))
                 ->update([
                    'order_statuses_id' =>$val['status'],  
@@ -516,8 +632,8 @@ class AdminOrderController extends Controller
             $e =explode(',',$d);
             $village_placement = array();
             foreach ($e as $v){
-                $get = DB::table('village')->where('id',$v)->get();              
-                array_push($village_placement,$get[0]->nama);
+                $get = DB::table('village')->where('id',$v)->first('nama')->nama;     
+                array_push($village_placement,$get);
             }
           
             $arr = array(
@@ -559,6 +675,52 @@ class AdminOrderController extends Controller
                         ON 
                         delivery_addresses.id = orders.delivery_address_id
                         WHERE orders.id = '.$req[0]['id']);
+        $data = DB::table('driver_list')->where('district_placement_id',$district[0]->district)->select('id','name')->get();
+        if(!empty($data)){
+            return response()->json(['data' => $data], 200);
+        }
+        return response()->json('Data Not Found', 200);
+    }
+
+    public function changeDriverFilterList(Request $request)
+    {
+        $req = $request->all();
+        $district = DB::select('
+                            SELECT
+                            orders.user_id, 
+                            user_profiles.user_id, 
+                            user_profiles.district_id AS district, 
+                            user_profiles.village_id AS village
+                        FROM
+                            orders
+                            INNER JOIN
+                            user_profiles
+                            ON 
+                            orders.user_id = user_profiles.user_id
+                            WHERE orders.id = '.$req[0]['id']);
+        $data = DB::table('driver_list')->where('district_placement_id',$district[0]->district)->where('village_placement_id', 'like', '%'.$district[0]->village.'%')->select('id','name')->get();
+        if(!empty($data)){
+            return response()->json(['data' => $data], 200);
+        }
+        return response()->json('Data Not Found', 200);
+    }
+
+    public function DeliveryDriverFilterList(Request $request)
+    {
+        $req = $request->all();
+        $district = DB::select('
+                            SELECT
+                            orders.user_id, 
+                            delivery_addresses.district,
+                            delivery_addresses.village
+                            FROM
+                            orders
+                            INNER JOIN
+                            delivery_addresses
+                            ON 
+                            orders.delivery_address_id = delivery_addresses.id
+                            WHERE orders.id = '.$req[0]['id']); 
+        
         $data = DB::table('driver_list')->where('district_placement_id',$district[0]->district)->select('id','name')->get();
         if(!empty($data)){
             return response()->json(['data' => $data], 200);
@@ -632,6 +794,30 @@ class AdminOrderController extends Controller
         
     }
  
+    public function changeDriverPickUp(Request $request)
+    {
+        $req = $request->all();
+        $update = DB::table('orders')->where('id',$req[0]['id'])->Update([
+            'driver_id_pickup' => $req[0]['driver']
+        ]);
 
+        if($update){
+            return response()->json('Data Updated Successfully', 200);
+        }
+        return response()->json('Data Update Failed');
+    }
+
+    public function changeDriverDelivery(Request $request)
+    {
+        $req = $request->all();
+        $update = DB::table('orders')->where('id',$req[0]['id'])->Update([
+            'driver_id_deliver' => $req[0]['driver']
+        ]);
+
+        if($update){
+            return response()->json('Data Updated Successfully', 200);
+        }
+        return response()->json('Data Update Failed');
+    }
  
 }

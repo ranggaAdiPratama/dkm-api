@@ -19,5 +19,6 @@ Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','rol
     Route::get('/return/order-list/{id}','OrderController@ReturnOrderList');
     Route::get('/return/order-detail/{id}','OrderController@ReturnOrderDetail');
     Route::get('/wallet','DriverController@driverTransaction');
+    Route::post('/return-finish','OrderController@finishReturn');
 
 });

@@ -9,6 +9,8 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], fun
     Route::get('order/canceled','AdminOrderController@canceledList');
     Route::get('order/return','AdminOrderController@returnList');
     Route::get('order/history','AdminOrderController@orderHistory');
+    Route::get('order/delivered-history','AdminOrderController@deliveredHistoryList');
+    Route::get('order/canceled-history','AdminOrderController@canceledHistoryList');
     Route::get('order/detail/{no_order}','AdminOrderController@detailOrder');
     Route::get('order/edit/{no_order}','AdminOrderController@editOrder');
     
@@ -24,8 +26,12 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], fun
     Route::get('driver/wallet','DriverController@driverWallet');
     Route::get('driver/wallet/{id}','DriverController@driverWalletDetail');
     Route::post('driver/filter','AdminOrderController@driverFilterList');
+    Route::post('change-driver/filter','AdminOrderController@changeDriverFilterList');
+    Route::post('delivery-driver/filter','AdminOrderController@DeliveryDriverFilterList');
     Route::post('driver/placement','DriverController@driverPlacement');
     Route::post('driver/assign-redeliver','AdminOrderController@driverAssignRedelivery');
+    Route::post('driver/change-driver-pickup','AdminOrderController@changeDriverPickUp');
+    Route::post('driver/change-driver-deliver','AdminOrderController@changeDriverDeliver');
     Route::post('driver/set-balance','DriverController@setSaldo');
 
     // 
