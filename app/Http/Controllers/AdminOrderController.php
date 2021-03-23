@@ -89,6 +89,7 @@ class AdminOrderController extends Controller
                     'order_status' => $val->order_status,
                     'payment_status' => $val->payment_status,
                     'payment_method' => $val->method,
+                    'method_id' => $val->method_id,
                     'driver_name' => $val->driver_name,
                 );
                 array_push($data,$arr);
@@ -279,10 +280,10 @@ class AdminOrderController extends Controller
             $file = pathinfo($fileExtension, PATHINFO_FILENAME); 
             $extension = $request->file('photo')->getClientOriginalExtension();
             $fileStore = $file . '_' . time() . '.' . $extension; 
-            $img = 'http://192.168.18.60:8000/photo/product/'. base64_encode($fileStore);
+            $img = 'photo/product/'. base64_encode($fileStore);
             $path = $request->file('photo')->storeAs('photo/product',$fileStore); 
         } else{
-            $img = 'https://cdn.medcom.id/dynamic/content/2018/12/31/971006/BNMY2dwu0a.jpg?w=700';
+            $img = 'photo/product/bm8tdGh1bWJuYWlsXzE2MTQwNTIwNjMuanBn';
         }
 
         //Create Payment
@@ -307,21 +308,47 @@ class AdminOrderController extends Controller
         $delivery_fee = $request->input('delivery_fee');
         //Check Customer
         $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->get();
-
         //Assign Pickup Driver
-        if(count($checkCust) == 0 ){
-            $getDriver = DB::select('SELECT
-                                user_id
+        if(count($checkCust) == 0 && $request->input('village') === "null"){
+                    $getDriver = DB::select('
+                    SELECT
+                    user_id, 
+                    coalesce(count, 0) as count
+                    FROM
+                        drivers
+                        LEFT JOIN
+                        count_driver_order
+                        ON 
+                            drivers.user_id = count_driver_order.id
+                    WHERE
+                        drivers.district_placement = '.$district.' 
+                        AND
+                        coalesce(count, 0) < 25
+                    ORDER BY
+                        count ASC
+                    LIMIT 1
+                    ')[0]->user_id;
+                    
+        }
+        elseif(count($checkCust) == 0 && $request->input('village') !== "null"){
+            $getDriver = DB::select('
+                                SELECT
+                                user_id, 
+                                coalesce(count, 0) as count
                                 FROM
-                                drivers
+                                    drivers
+                                    LEFT JOIN
+                                    count_driver_order
+                                    ON 
+                                        drivers.user_id = count_driver_order.id
                                 WHERE
-                                drivers.district_placement = '.$district.'
-                                AND
+                                    drivers.district_placement = '.$district.' 
+                                    AND
                                 drivers.village_placement LIKE "%'.$request->input('village').'%"
-                                AND
-                                drivers.total_orders < 25
+                                    AND
+                                    coalesce(count, 0) < 25
                                 ORDER BY
-                                drivers.total_orders ASC
+                                    count ASC
                                 LIMIT 1')[0]->user_id;
         }
         else
@@ -358,7 +385,9 @@ class AdminOrderController extends Controller
         ]);
             $getCount = DB::table('count_driver_order')->where('id',$driver)->first();
         if(!empty($detail)){
-            DB::table('drivers')->where('user_id',$getCount->id)->update(['total_orders' => $getCount->count]); 
+            DB::table('drivers')
+            ->where('user_id',$getCount->id)
+            ->update(['total_orders' => $getCount->count]); 
             return response()->json("Order berhasil di buat", 200);
         }
 
@@ -399,22 +428,23 @@ class AdminOrderController extends Controller
                      'order_statuses_id' =>$val['status'],
                      'pickup_at' => date('Y-m-d H:i:s')
                      ]);
-            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] = 1 ){
+            //Barang diambil dengan talangan & ongkir di tanggung pengirim            
+            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] == 1 ){
             $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
-            $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
-            $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
+            $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+            $wallet_id = DB::select('select id from wallet where user_id = '.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
             $debit = DB::table('wallet_transaction')
                         ->insert([
                             'wallet_id' => $wallet_id[0]->id,
                             'type' => 'debit',
-                            'description' => 'Talangan Barang',
+                            'description' => 'Talangan Barang (#'.$user_id[0]->no_order.')',
                             'amount' => -$getAmount[0]->price 
                             ]);
             $credit = DB::table('wallet_transaction')
             ->insert([
                 'wallet_id' => $wallet_id[0]->id,
                 'type' => 'credit',
-                'description' => 'Ongkir',
+                'description' => 'Ongkir (#'.$user_id[0]->no_order.')',
                 'amount' => $getAmount[0]->delivery_fee
                 ]);
             Order::where('id',intval($val['id']))
@@ -424,15 +454,35 @@ class AdminOrderController extends Controller
                 'bailout_id' => $val['bailout'],
                 'pickup_at' => date('Y-m-d H:i:s')  
              ]);
-            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] = 2 ){
+             //Barang diambil tanpa talangan & ongkir di tanggung pengirim
+            }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] == 1 ){
                 $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
-                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
-                $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+                $wallet_id = DB::select('select id from wallet where user_id = '.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+                $credit = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $wallet_id[0]->id,
+                    'type' => 'credit',
+                    'description' => 'Ongkir (#'.$user_id[0]->no_order.')',
+                    'amount' => $getAmount[0]->delivery_fee
+                    ]);
+                Order::where('id',intval($val['id']))
+                 ->update([
+                    'pickup_status' => 1 ,
+                    'order_statuses_id' =>$val['status'],
+                    'bailout_id' => $val['bailout'],
+                    'pickup_at' => date('Y-m-d H:i:s')  
+                 ]);
+                 //Barang diambil dengan talangan & ongkir di tanggung penerima
+                }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] == 2 ){
+                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+                $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as date) = CURRENT_DATE');
                 $debit = DB::table('wallet_transaction')
                             ->insert([
                                 'wallet_id' => $wallet_id[0]->id,
                                 'type' => 'debit',
-                                'description' => 'Talangan Barang',
+                                'description' => 'Talangan Barang (#'.$user_id[0]->no_order.')',
                                 'amount' => -$getAmount[0]->price 
                                 ]);
                 Order::where('id',intval($val['id']))
@@ -442,32 +492,8 @@ class AdminOrderController extends Controller
                     'bailout_id' => $val['bailout'],
                     'pickup_at' => date('Y-m-d H:i:s')  
                  ]);
-                }elseif($val['status'] == 4){
-                Order::where('id',intval($val['id']))
-                ->update([
-                   'order_statuses_id' =>$val['status'],
-                   'driver_id_deliver' =>$val['driver'],
-                   'pickup_at' => date('Y-m-d H:i:s')  
-                ]);
-            }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] = 3 ){
-                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
-                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup')->get();
-                $wallet_id = DB::table('wallet')->where('user_id',intval($user_id[0]->driver_id_pickup))->get('id');
-                $debit = DB::table('wallet_transaction')
-                            ->insert([
-                                'wallet_id' => $wallet_id[0]->id,
-                                'type' => 'debit',
-                                'description' => 'Talangan Barang',
-                                'amount' => -$getAmount[0]->price 
-                                ]);
-                Order::where('id',intval($val['id']))
-                 ->update([
-                    'pickup_status' => 1 ,
-                    'order_statuses_id' =>$val['status'],
-                    'bailout_id' => $val['bailout'],
-                    'pickup_at' => date('Y-m-d H:i:s')  
-                 ]);
-                }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] = 4 ){
+                 //Barang diambil tanpa talangan & ongkir di tanggung penerima
+                }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] == 2 ){
                     Order::where('id',intval($val['id']))
                      ->update([
                         'pickup_status' => 1 ,
@@ -475,18 +501,116 @@ class AdminOrderController extends Controller
                         'bailout_id' => $val['bailout'],
                         'pickup_at' => date('Y-m-d H:i:s')  
                      ]);
-                    }elseif($val['status'] == 5){
+                //Driver Assign
+                }elseif($val['status'] == 4){
+                Order::where('id',intval($val['id']))
+                ->update([
+                   'order_statuses_id' =>$val['status'],
+                   'driver_id_deliver' =>$val['driver'],
+                   'pickup_at' => date('Y-m-d H:i:s')  
+                ]);
+                //Barang diambil ongkir di tanggung pengirim
+            }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] == 3 ){
+                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+                $wallet_id = DB::select('select id from wallet where user_id = '.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as date) = CURRENT_DATE');
+                $credit = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $wallet_id[0]->id,
+                    'type' => 'credit',
+                    'description' => 'Ongkir (#'.$user_id[0]->no_order.')',
+                    'amount' => $getAmount[0]->delivery_fee
+                    ]);
+                Order::where('id',intval($val['id']))
+                 ->update([
+                    'pickup_status' => 1 ,
+                    'order_statuses_id' =>$val['status'],
+                    'bailout_id' => $val['bailout'],
+                    'pickup_at' => date('Y-m-d H:i:s')  
+                 ]);
+                 //Barang diambil ongkir di tanggung penerima
+                }elseif($val['status'] == 3 && $val['bailout'] == 2 && $val['method'] == 4 ){
+                    Order::where('id',intval($val['id']))
+                     ->update([
+                        'pickup_status' => 1 ,
+                        'order_statuses_id' =>$val['status'],
+                        'bailout_id' => $val['bailout'],
+                        'pickup_at' => date('Y-m-d H:i:s')  
+                     ]);
+                //Barang diantar dengan tagihan
+                }elseif($val['status'] == 5 && $val['method'] == 1 ){
+                    $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                    $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+                    $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($user_id[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+                    $credit = DB::table('wallet_transaction')
+                                ->insert([
+                                    'wallet_id' => $wallet_id[0]->id,
+                                    'type' => 'credit',
+                                    'description' => 'Pembayaran Barang (#'.$user_id[0]->no_order.')',
+                                    'amount' => $getAmount[0]->price 
+                                    ]);
                 Order::where('id',intval($val['id']))
                 ->update([
                    'order_statuses_id' =>$val['status'],
                    'delivered_at' => date('Y-m-d H:i:s')  
                 ]);
+            }
+            //Barang diantar dengan tagihan dan ongkir
+            elseif($val['status'] == 5 && $val['method'] == 2 ){
+                $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+                $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+                $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($user_id[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+                $credit = DB::table('wallet_transaction')
+                            ->insert([
+                                'wallet_id' => $wallet_id[0]->id,
+                                'type' => 'debit',
+                                'description' => 'Pembayaran Barang (#'.$user_id[0]->no_order.')',
+                                'amount' => $getAmount[0]->price 
+                                ]);
+                $credit2 = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $wallet_id[0]->id,
+                    'type' => 'credit',
+                    'description' => 'Ongkir (#'.$user_id[0]->no_order.')',
+                    'amount' => $getAmount[0]->delivery_fee
+                    ]);
+            Order::where('id',intval($val['id']))
+            ->update([
+               'order_statuses_id' =>$val['status'],
+               'delivered_at' => date('Y-m-d H:i:s')  
+            ]);
+            //Barang diantar tanpa tagihan dan ongkir
+            }elseif($val['status'] == 5 && $val['method'] == 3 ){
+            Order::where('id',intval($val['id']))
+            ->update([
+            'order_statuses_id' =>$val['status'],
+            'delivered_at' => date('Y-m-d H:i:s')  
+            ]);
+            //Barang diantar dengan ongkir tanpa tagihan
+            }elseif($val['status'] == 5 && $val['method'] == 4 ){
+            $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
+            $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
+            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($user_id[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+            $credit2 = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $wallet_id[0]->id,
+                    'type' => 'credit',
+                    'description' => 'Ongkir (#'.$user_id[0]->no_order.')',
+                    'amount' => $getAmount[0]->delivery_fee
+                    ]);
+            Order::where('id',intval($val['id']))
+            ->update([
+            'order_statuses_id' =>$val['status'],
+            'delivered_at' => date('Y-m-d H:i:s')  
+            ]);
+            //Cancel Order
             }elseif($val['status'] == 6){
                 Order::where('id',intval($val['id']))
                 ->update([
                    'order_statuses_id' =>$val['status'],  
                 ]);
                }
+            //Retur 
             elseif($val['status'] == 7){
                 DB::table('return')->insert(['id_orders' => intval($val['id'])]);
                 Order::where('id',intval($val['id']))
@@ -494,6 +618,7 @@ class AdminOrderController extends Controller
                    'order_statuses_id' =>$val['status'],  
                 ]);
                }
+            //Pengiriman Ulang
             elseif($val['status'] == 8){
             Order::where('id',intval($val['id']))
             ->update([
@@ -631,16 +756,18 @@ class AdminOrderController extends Controller
             $d = str_replace(str_split('\\[]"'), '', $val->village_placement_id);
             $e =explode(',',$d);
             $village_placement = array();
+            if($val->village_placement_id !== null){
             foreach ($e as $v){
                 $get = DB::table('village')->where('id',$v)->first('nama')->nama;     
                 array_push($village_placement,$get);
+            }
             }
           
             $arr = array(
            'id' => $val->id,
            'name' => $val->name,
            'email' => $val->email,
-           'total_order' => $val->total_orders,
+           'total_order' => $val->count,
            'category' => $val->category,
            'district_placement' => $val->district_placement,
            'village_placement' => $village_placement,
@@ -648,7 +775,6 @@ class AdminOrderController extends Controller
            'driver_village' => $val->driver_village,
            'phone' => $val->phone,
            'photo' => $val->photo,
-           'saldo' => $val->begin_balance + $val->amount
        );
        array_push($driver,$arr);
     }

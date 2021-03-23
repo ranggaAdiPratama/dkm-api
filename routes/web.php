@@ -15,6 +15,7 @@ Route::group(['prefix' => 'auth'], function () use ($router)
    Route::get('logout', 'AuthController@logout');
    Route::get('user', 'AuthController@me');
    Route::get('refresh', 'AuthController@refresh');
+   Route::get('change-status/{id}', 'AuthController@changeStatus');
 });
 
  // Menu Dashboard

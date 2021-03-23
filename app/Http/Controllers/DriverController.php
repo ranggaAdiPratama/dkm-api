@@ -112,11 +112,18 @@ class DriverController extends Controller
                     ->where('id',$id)
                     ->get();
         $data = array();
+        $debit = [];
+        $credit = [];
         $data_amount = array();
         if(!empty($getData)){
             $ending_balance = [];
             foreach($getData as $val){
                 $date = date_create($val->created_at);
+                if($val->type === 'debit'){
+                    array_push($debit,$val->amount);
+                }else{
+                    array_push($credit,$val->amount);
+                }
                 $amount = intval($val->amount);
                 array_push($data_amount,$amount);
                 $arr = array(
@@ -136,6 +143,8 @@ class DriverController extends Controller
             return response()->json([
                 'begin_balance' => intval($begin_balance[0]->begin_balance),
                 'data' => $data,
+                'debit' => array_sum($debit),
+                'credit' => array_sum($credit),
                 'ending_balance' => $begin_balance[0]->begin_balance + array_sum($data_amount)
                 ]);
         }
@@ -208,9 +217,21 @@ class DriverController extends Controller
     {
         $req = $request->all();
         date_default_timezone_set('Asia/Bangkok');
+        $check_saldo = DB::table('driver_wallet')->get();
+        if(count($check_saldo) > 0){
         foreach ($req as $val){
-            $update = DB::table('wallet')->where('user_id', intval($val['id']))->Update(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s')]);
+            // $update = DB::table('wallet')
+            // ->where('user_id', intval($val['id']))
+            // ->where('SELECT CAST(created_at AS DATE)', date('Y-m-d'))
+            // ->Update(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s')]);
+
+            $update = DB::update('update wallet set begin_balance = '.intval($val["begin_balance"]).',update_at = "'.date("Y-m-d H:i:s").'" WHERE user_id = '.intval($val['id']).' AND CAST(created_at as date)= CURRENT_DATE');
         }
+       }else{   
+        foreach ($req as $val){
+            $create = DB::table('wallet')->insert(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s'),'user_id' => intval($val['id'])]);
+        }
+       }
 
         return response()->json('Data Updated Successfully', 200); 
     }

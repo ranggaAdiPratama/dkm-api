@@ -26,6 +26,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         //validate incoming request 
+        date_default_timezone_set('Asia/Bangkok');
         $role = $request->input('role_id');
         $this->validate($request, [
             'name'  => 'required|string',
@@ -75,7 +76,7 @@ class AuthController extends Controller
             }
             
             if($role == 3){
-                DB::insert('insert into wallet (user_id,begin_balance) values (?, ?)', [$user->id, 0]);
+                DB::insert('insert into wallet (user_id,begin_balance,update_at) values (?, ?)', [$user->id, 0,date('Y-m-d H:i:s')]);
                 DB::insert('insert into drivers (user_id,driver_category_id) values (?, ?)', [$user->id, 1]);
                 $wallet_id = DB::select('select id from wallet order by id desc LIMIT 1');
               
@@ -112,12 +113,17 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
-
+        
         $credentials = $request->only(['email', 'password']);
 
         if (! $token = Auth::attempt($credentials)) {			
             return response()->json(['message' => 'Unauthorized'], 401);
         }
+        if(auth()->user()->online === '1'){
+            return response()->json(['message' => 'Akun anda telah login di perangkat lain'], 402);
+        }
+        $id = auth()->user()->id;
+        DB::table('users')->where('id',$id)->update(['online'=> '1']);
         $currentUser = Auth::user();
         $token = auth()->setTTL(7200)->attempt($credentials);
         return $this->respondWithToken($token, $currentUser);
@@ -178,7 +184,8 @@ class AuthController extends Controller
     }
 
     public function logout()
-    {   
+    {   $id = auth()->user()->id;
+        DB::table('users')->where('id',$id)->update(['online'=> '0']);
         $logout = Auth::logout(true);
         return "Logout Berhasil";
     }
@@ -311,6 +318,11 @@ class AuthController extends Controller
                         'result' => 'failed'
              ], 409);
          }
+    }
+
+    public function changeStatus ($id) 
+    {
+      DB::table('users')->where('id', $id)->update(['online' => 0]);
     }
 
     

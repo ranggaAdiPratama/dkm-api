@@ -90,4 +90,16 @@ class DeliveryListController extends Controller
     {
         //
     }
+
+    public function countDeliveryFee(Request $request)
+    {
+        $weight = $request->input('weight');
+        $deliv_fee = DB::table('delivery_fee_list')->get();
+        // dd($deliv_fee);
+        foreach($deliv_fee as $val){
+            if($weight > $val->from_weight && $weight <= $val->to_weight){
+                return response()->json(['delivery_fee' => intval($val->price)], 200);
+            }
+        }
+    }
 }
