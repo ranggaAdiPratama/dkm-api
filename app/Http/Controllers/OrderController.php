@@ -802,7 +802,6 @@ class OrderController extends Controller
         //                 ->where('driver_id_pickup', $id)
         //                 ->get();
         $data = array();
-        
         if (!empty($getOrder)){
             foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
@@ -1046,10 +1045,10 @@ public function ReturnOrderDetail($id)
             'payment_method' => 'required',
             'receiver_address' => 'required',
             'receiver_name' => 'required',
-            'receiver_phone' => 'required',
-            'district' => 'required',
+            'receiver_phone' => 'required'
 
         ]);
+        
         if($request->input('user_id') == null){
             $id = auth()->user()->id;  
         }else{
@@ -1058,7 +1057,7 @@ public function ReturnOrderDetail($id)
         $numb = rand(0,999999);
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
-        $district = $request->input('district');
+        $district = DB::table('user_profiles')->where('user_id',$id)->first('district_id')->district_id;
         $price = $request->input('price');
 
         //insert photo
@@ -1113,6 +1112,8 @@ public function ReturnOrderDetail($id)
             drivers.district_placement = '.$district.' 
             AND
             coalesce(count, 0) < 25
+            AND
+            drivers.driver_category_id = 1
             ORDER BY
             count ASC
             LIMIT 1
@@ -1136,6 +1137,8 @@ public function ReturnOrderDetail($id)
                                 drivers.village_placement LIKE "%'.$request->input('village').'%"
                                     AND
                                     coalesce(count, 0) < 25
+                                    AND
+                                    drivers.driver_category_id = 1
                                 ORDER BY
                                     count ASC
                                 LIMIT 1')[0]->user_id;
@@ -1154,6 +1157,7 @@ public function ReturnOrderDetail($id)
         $order->driver_id_pickup = $driver;
         $order->delivery_address_id = $deliv_address;
         $order->payment_id = $payment_id;
+        $order->category_id = 1;
         $order->pickup_status = 0;
         $order->save();
         $id_order = $order->id;
@@ -1205,7 +1209,7 @@ public function ReturnOrderDetail($id)
     public function orderListCustomer()
     {
         $id  = auth()->user()->id;
-        $data = DB::table('list_orders_customer')->where('user_id',$id)->get();
+        $data = DB::table('list_orders_customer')->where('user_id',$id)->where('category_id','1')->get();
 
         return response()->json($data);
     }
@@ -1229,18 +1233,132 @@ public function ReturnOrderDetail($id)
         return response()->json('Data Updated Successfully');
     }
 
-    public function cancelStatus(Request $request)
+    public function cancelStatus($id)
     {   
-      $id = $request->input('id');
-      $status = $request->input('status');
       date_default_timezone_set('Asia/Bangkok');
        $update = Order::where('id',$id)
         ->update([
-        'order_statuses_id' =>$status,    
+        'order_statuses_id' => 6, 
+        'pickup_status' => 1,   
 
         ]);
         if($update){
             return response()->json('Data Successfully updated', 200);
         }
+    }
+
+    public function customerTracker($status)
+    {   
+        $id  = auth()->user()->id;
+        if($status == 0 ){
+        $getData = DB::table('list_orders_customer')
+        ->where('user_id',$id)
+        ->where('pickup_status',$status)
+        ->get();
+        }elseif($status == 1 ){
+            $getData = DB::select('select * from list_orders_customer where user_id = '.$id.' AND order_statuses_id = 4 AND pickup_status = 1');
+            }else{
+        $getData = DB::table('list_orders_customer')
+        ->where('user_id',$id)
+        ->where('order_statuses_id',$status)
+        ->get();
+        }
+        $data = array();
+
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $date = date_create($val->created_at);
+                $array = array(
+                    'id_order' => intval($val->id),
+                    'no_order' => '#'.$val->no_order,
+                    'tangga_order' => date_format($date,'d-M-Y') ,
+                    'sender_address' => $val->sender_address ,
+                    'receiver_address' => $val->address,
+                    'product_name' => $val->product_name,
+                    'delivery_fee' => intval($val->delivery_fee),
+                    'price' => intval($val->price),
+                    'category_id' => intval($val->category_id),
+                    'receiver_name' => $val->receiver_name,
+                    'status' => $val->status,
+                    'payment_method' => intval($val->id_method),
+                    'total' => intval($val->price) + intval($val->delivery_fee)
+
+                );
+                array_push($data,$array);
+            }
+        }
+        return response()->json(['data' => $data]);
+    }
+
+    public function trackerDetailCustomer($id_order)
+    {
+        $id  = auth()->user()->id;
+        $getData = DB::table('list_orders_customer')
+        ->where('id',$id_order)
+        ->get();
+
+        $data = array();
+
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $date = date_create($val->created_at);
+                $array = array(
+                    'id_order' => intval($val->id),    
+                    'no_order' => '#'.$val->no_order,
+                    'delivery_fee' => intval($val->delivery_fee) ,
+                    'product_name' => $val->product_name,
+                    'price' => intval($val->price),
+                    'tangga_order' => date_format($date,'d-M-Y') ,
+                    'product_description' => $val->product_description,
+                    'weight' => intval($val->weight),
+                    'volume' => intval($val->volume),
+                    'photo' => $val->photo,
+                    'receiver_name' => $val->receiver_name,
+                    'receiver_phone' => $val->receiver_phone,
+                    'receiver_phone2' => $val->receiver_phone2,
+                    'id_method' => intval($val->id_method),
+                    'method' => $val->method,
+                    'status' => $val->status,
+                    'id_status' => intval($val->order_statuses_id),
+                    'deliv_address' => $val->address,
+                    'receiver_district' => $val->receiver_district,
+                    // 'desc_add' => $val->desc_add,
+                    'latitude' => $val->latitude,
+                    'longitude' => $val->longitude,
+                    'sender_name' => $val->sender_name,
+                    'sender_phone' => $val->sender_phone,
+                    'sender_phone2' => $val->sender_phone2,
+                    'sender_address' => $val->sender_address,
+                    'driver_name' => $val->driver_name,
+                    'driver_phone' => $val->driver_phone,
+                    'driver_photo' => $val->driver_photo,
+                    'category_id' => intval($val->category_id),
+                    'subtotal' => $val->delivery_fee + $val->price
+                    );
+                array_push($data,$array);
+            }
+        }
+        
+        if(!empty($data)){
+        return response()->json(['data' => $data[0]]);
+        }else{
+            return response()->json(['data' => $data]);
+        }
+    }
+
+    public function updateAddress(Request $request)
+    {
+         //validate incoming request 
+         $id = $request->input('id');
+         $address_id = DB::table('orders')->where('id',$id)->get('delivery_address_id')[0]->delivery_address_id;
+        DB::table('delivery_addresses')->where('id',$address_id)->update([
+                            'district' => $request->input('district_id'),
+                            'village' => $request->input('village_id'),
+                            'address' => $request->input('address')
+                        ]);
+        
+            return response()->json('data updated successfully',200);
+     
+     
     }
 }

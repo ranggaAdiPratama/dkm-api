@@ -51,7 +51,8 @@ class Controller extends BaseController
                 'village' => $profile[0]->village_id,
                 'address' => $profile[0]->address,
                 'photo' =>$profile[0]->photo,
-                'saldo' =>$end_balance
+                'saldo' =>$end_balance,
+                'status' => intval($profile[0]->online)
             )
 
         ], 200);

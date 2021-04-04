@@ -11,6 +11,7 @@ Route::group(['prefix' => 'auth'], function () use ($router)
 {
    Route::post('register','AuthController@register');
    Route::post('update','AuthController@update');
+   Route::post('update-address','AuthController@updateAddress');
    Route::post('login', 'AuthController@login');
    Route::get('logout', 'AuthController@logout');
    Route::get('user', 'AuthController@me');
@@ -37,12 +38,15 @@ Route::group(['prefix' => 'delivery-address'], function () {
 });
 
 include 'driver.php';
+include 'driverExp.php';
 include 'admin.php';
 include 'customer.php';
 
 Route::get('/photo/{name}','AuthController@getPhoto');
 Route::get('/photo/product/{name}','AuthController@getPhotoProduct');
-Route::post('testInsert','OrderController@testInsert');
+Route::get('district-list','ApiRegionController@getDistrict');
+Route::get('villages-list/{id}','ApiRegionController@getVillage');
+Route::get('customer/','OrderController@customer');
 
 
 

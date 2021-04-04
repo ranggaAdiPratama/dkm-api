@@ -74,15 +74,12 @@ class AuthController extends Controller
                 $profile->photo = 'photo/YXZhdGFyXzE2MTM4NzQ3NzlfMTYxNDA2NDQ2Mi5qcGc=';
                 $profile->save();
             }
-            
-            if($role == 3){
-                DB::insert('insert into wallet (user_id,begin_balance,update_at) values (?, ?)', [$user->id, 0,date('Y-m-d H:i:s')]);
+            if(intval($role) == 3){
                 DB::insert('insert into drivers (user_id,driver_category_id) values (?, ?)', [$user->id, 1]);
-                $wallet_id = DB::select('select id from wallet order by id desc LIMIT 1');
-              
-            }
-            if(!empty($wallet_id)){
-                DB::insert('insert into wallet_transaction (wallet_id) values ('.$wallet_id[0]->id.')');
+                DB::insert('insert into wallet (user_id,begin_balance,update_at) values (?, ?, ?)', [$user->id, 0,date('Y-m-d H:i:s')]);
+            }elseif(intval($role) == 4){
+                DB::insert('insert into drivers (user_id,driver_category_id) values (?, ?)', [$user->id, 2]);
+                DB::insert('insert into wallet (user_id,begin_balance,update_at) values (?, ?, ?)', [$user->id, 0,date('Y-m-d H:i:s')]);
             }
 
             return response()->json( [
@@ -117,11 +114,11 @@ class AuthController extends Controller
         $credentials = $request->only(['email', 'password']);
 
         if (! $token = Auth::attempt($credentials)) {			
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return response()->json(['message' => 'Email/Password Salah'], 401);
         }
-        if(auth()->user()->online === '1'){
-            return response()->json(['message' => 'Akun anda telah login di perangkat lain'], 402);
-        }
+        // if(auth()->user()->online === '1'){
+        //     return response()->json(['message' => 'Akun anda telah login di perangkat lain'], 402);
+        // }
         $id = auth()->user()->id;
         DB::table('users')->where('id',$id)->update(['online'=> '1']);
         $currentUser = Auth::user();
@@ -137,7 +134,6 @@ class AuthController extends Controller
      */	 	
     public function me()
     {   
-        
         $id = auth()->user()->id;
         // dd($id);
         $profile = User::join('user_profiles as up','users.id','up.user_id')
@@ -178,6 +174,7 @@ class AuthController extends Controller
             'village' => $profile->village_id,
             'address' => $profile->address,
             'photo' =>$profile->photo,
+            'status' =>intval($profile->online),
             'saldo' =>$end_balance
         )
         ]);
@@ -185,7 +182,7 @@ class AuthController extends Controller
 
     public function logout()
     {   $id = auth()->user()->id;
-        DB::table('users')->where('id',$id)->update(['online'=> '0']);
+        DB::table('users')->where('id',$id)->update(['online'=> 0]);
         $logout = Auth::logout(true);
         return "Logout Berhasil";
     }
@@ -226,7 +223,7 @@ class AuthController extends Controller
     
     public function getPhoto($name)
     {
-        $avatar_path = storage_path('app\photos') . '/'.base64_decode($name);
+        $avatar_path = storage_path('app/photos') . '/'.base64_decode($name);
 
         if (file_exists($avatar_path)) {
             $file = file_get_contents($avatar_path);
@@ -240,7 +237,7 @@ class AuthController extends Controller
 
     public function getPhotoProduct($name)
     {
-        $avatar_path = storage_path('app\photo\product') . '/'.base64_decode($name);
+        $avatar_path = storage_path('app/photo/product') . '/'.base64_decode($name);
 
         if (file_exists($avatar_path)) {
             $file = file_get_contents($avatar_path);
@@ -320,10 +317,31 @@ class AuthController extends Controller
          }
     }
 
-    public function changeStatus ($id) 
+    public function updateAddress(Request $request)
     {
-      DB::table('users')->where('id', $id)->update(['online' => 0]);
+         //validate incoming request 
+         $id = auth()->user()->id;
+        DB::table('user_profiles')->where('user_id',$id)->update([
+                            'district_id' => $request->input('district_id'),
+                            'village_id' => $request->input('village_id'),
+                            'address' => $request->input('address')
+                        ]);
+        
+            return response()->json('data updated successfully',200);
+     
+     
     }
 
+    public function changeStatus ($id) 
+    {
+      $cek =  DB::table('users')->where('id', $id)->first('online')->online;
+      if($cek == 1){
+      DB::table('users')->where('id', $id)->update(['online' => 0]);
+      }else{
+        DB::table('users')->where('id', $id)->update(['online' => 1]);
+      }
+    }
+
+  
     
 }
