@@ -14,7 +14,7 @@ class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login','register','getPhoto','getPhotoProduct','refresh']]);
+        $this->middleware('auth:api', ['except' => ['login','register','getPhoto','getPhotoProduct','refresh','forgetPassword']]);
     }
 
     /**
@@ -59,6 +59,7 @@ class AuthController extends Controller
                 $profile->phone = $request->input('phone');
                 $profile->phone2 = $request->input('phone2');
                 $profile->address = $request->input('address');
+                $profile->city_id = $request->input('city_id');
                 $profile->district_id = $request->input('district_id');
                 $profile->village_id = $request->input('village_id');
                 $profile->photo = 'photo/'. base64_encode($fileStore);
@@ -170,6 +171,7 @@ class AuthController extends Controller
             'role_id' => intval($profile->role_id),
             'phone' => $profile->phone,
             'phone2' => $profile->phone2,
+            'city' => $profile->city_id,
             'district' => $profile->district_id,
             'village' => $profile->village_id,
             'address' => $profile->address,
@@ -185,6 +187,18 @@ class AuthController extends Controller
         DB::table('users')->where('id',$id)->update(['online'=> 0]);
         $logout = Auth::logout(true);
         return "Logout Berhasil";
+    }
+
+    public function getDeviceId(Request $request)
+    {
+        $device_id = $request->input('device_id');
+        $id = auth()->user()->id;
+        $save = DB::table('users')->where('id',$id)->update(['device_id' => $device_id]);
+
+        if($save == 1 ){
+            return response()->json('Data Updated successfully');
+        }
+
     }
 
     public function refresh()
@@ -276,7 +290,7 @@ class AuthController extends Controller
                         ->Update([
                             'name' => $request->input('name'),
                             'email' => $request->input('email'),
-                            'role_id' => $request->input('role_id')
+                            'role_id' => $request->input('role_id'),
                         ]);
         if ($request->hasFile('photo')) 
         { 
@@ -284,6 +298,7 @@ class AuthController extends Controller
                                     ->update([
                                         'phone' => $request->input('phone'),
                                         'phone2' => $request->input('phone2'),
+                                        'city_id' => $request->input('city_id'),
                                         'district_id' => $request->input('district_id'),
                                         'village_id' => $request->input('village_id'),
                                         'address' => $request->input('address'),
@@ -295,6 +310,7 @@ class AuthController extends Controller
                                         ->update([
                                             'phone' => $request->input('phone'),
                                             'phone2' => $request->input('phone2'),
+                                            'city_id' => $request->input('city_id'),
                                             'district_id' => $request->input('district_id'),
                                             'village_id' => $request->input('village_id'),
                                             'address' => $request->input('address'),
@@ -322,6 +338,7 @@ class AuthController extends Controller
          //validate incoming request 
          $id = auth()->user()->id;
         DB::table('user_profiles')->where('user_id',$id)->update([
+                            'city_id' => $request->input('city_id'),
                             'district_id' => $request->input('district_id'),
                             'village_id' => $request->input('village_id'),
                             'address' => $request->input('address')
@@ -340,6 +357,18 @@ class AuthController extends Controller
       }else{
         DB::table('users')->where('id', $id)->update(['online' => 1]);
       }
+    }
+
+    public function forgetPassword(Request $request)
+    {
+        $email = $request->input('email');
+        $newPass = $request->input('password');
+
+        $update = DB::table('users')->where('email',$email)->update(['password' => app('hash')->make($newPass)]);
+        if($update > 0 ){
+            return response()->json('Data Updated Successfully');
+        }
+        return response()->json('Data Update Failed');
     }
 
   

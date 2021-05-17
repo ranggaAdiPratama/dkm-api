@@ -102,4 +102,34 @@ class DeliveryListController extends Controller
             }
         }
     }
+
+    public function specialDeliveryFee($id)
+    {
+        $get = DB::table('special_region')->where('village_id',$id)->first()->delivery_fee;
+        $d = DB::table('delivery_fee_list')->first()->price;
+        $add =intval($get) - intval($d);
+        return response()->json(intval($add));
+    }
+
+    public function specialDeliveryCount(Request $request)
+    {
+        $weight = intval($request->input('weight'));
+        $get = DB::table('special_region')->where('village_id',$request->input('village_id'))->first()->delivery_fee;
+        $add = (intval($get)*$weight);
+
+        return response()->json(['delivery_fee' => intval($add)]);
+    }
+
+    public function specialPickupFee()
+    {
+        $id =auth()->user()->id;
+        $g = DB::table('user_profiles')->leftJoin('special_region','special_region.village_id','user_profiles.village_id')->where('user_id',$id)->first()->pickup_fee;
+        // $get = DB::table('special_region')->where('village_id',$g)->first()->pickup_fee;
+        if($g !== null){
+            $d = DB::table('delivery_fee_list')->first()->price;
+        $add =intval($g) - intval($d);
+        return response()->json(intval($add));
+        }
+        return response()->json(0);
+    }
 }

@@ -47,6 +47,7 @@ class Controller extends BaseController
                 'role_id' => intval($profile[0]->role_id),
                 'phone' => $profile[0]->phone,
                 'phone2' => $profile[0]->phone2,
+                'city' => $profile[0]->city_id,
                 'district' => $profile[0]->district_id,
                 'village' => $profile[0]->village_id,
                 'address' => $profile[0]->address,

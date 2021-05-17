@@ -118,9 +118,21 @@ class OrderController extends Controller
                     // 'sender_phone' => $val->sender_phone,
                     'subtotal' => $val->delivery_fee + $val->price
                     );
-                    array_push($total_delivery_fee,$array['delivery_fee']);
-                    array_push($total_price,$array['price']);
-                    array_push($total,$array['subtotal']);
+                    if($val->id_method == 1 || $val->id_method == 2){
+                        array_push($total,$array['subtotal']);
+                    }else{
+                        array_push($total,array('subtotal' => 0));
+                    }
+                    if($val->id_method == 1 || $val->id_method == 3){
+                        array_push($total_delivery_fee,$array['delivery_fee']);
+                    }else{
+                        array_push($total_delivery_fee,array('delivery_fee' => 0));
+                    }
+                    if($val->id_method == 1 || $val->id_method == 3){
+                        array_push($total_price,$array['price']);
+                    }else{
+                        array_push($total_price,array('price' => 0));
+                    }
                     array_push($detailArr,$array);
                 }
             }
@@ -220,7 +232,7 @@ class OrderController extends Controller
        if($status == 3 && $bailout == 1 && $method == 1){
             $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
             $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
-            $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+            $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
             $debit = DB::table('wallet_transaction')
                         ->insert([
                             'wallet_id' => $wallet_id[0]->id,
@@ -251,7 +263,7 @@ class OrderController extends Controller
        } elseif($status == 3 && $bailout == 1 && $method == 2){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
         $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
-        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
         $debit = DB::table('wallet_transaction')
                      ->insert([
                          'wallet_id' => $wallet_id[0]->id,
@@ -275,7 +287,7 @@ class OrderController extends Controller
     }elseif($status == 3 && $bailout == 2 && $method == 1){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
         $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
-        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
         $credit = DB::table('wallet_transaction')
         ->insert([
             'wallet_id' => $wallet_id[0]->id,
@@ -299,7 +311,7 @@ class OrderController extends Controller
      }elseif($status == 3 && $bailout == 2 && $method == 2){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
         $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
-        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
          Order::join('payments','payments.id','orders.payment_id')
              ->where('orders.id',$id)
              ->update([
@@ -316,7 +328,7 @@ class OrderController extends Controller
      }elseif($status == 3 && $method == 3){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
         $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
-        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE');
+        $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
          $credit = DB::table('wallet_transaction')
          ->insert([
              'wallet_id' => $wallet_id[0]->id,
@@ -349,7 +361,66 @@ class OrderController extends Controller
 
          return response()->json('Data Successfully updated', 200);
      // Retur
-     }elseif($status == 7){
+     }elseif($status == 7 && $method == 1){
+        DB::table('return')->insert(['id_orders' => $id]);
+        $credit = DB::table('wallet_transaction')
+        ->insert([
+            'wallet_id' => $wallet_id[0]->id,
+            'type' => 'creadit',
+            'description' => 'Pengembalian Pembayaran Barang (#'.$order[0]->no_order.')',
+            'amount' => $getAmount[0]->delivery_fee
+            ]);
+        $debit = DB::table('wallet_transaction')
+         ->insert([
+             'wallet_id' => $wallet_id[0]->id,
+             'type' => 'debit',
+             'description' => 'Pengembalian Ongkir (#'.$order[0]->no_order.')',
+             'amount' => -$getAmount[0]->delivery_fee
+             ]);
+        Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+
+        return response()->json('Data Successfully updated', 200);
+    
+       }elseif($status == 7 && $method == 2){
+        DB::table('return')->insert(['id_orders' => $id]);
+        $credit = DB::table('wallet_transaction')
+        ->insert([
+            'wallet_id' => $wallet_id[0]->id,
+            'type' => 'credit',
+            'description' => 'Pengembalian Pembayaran Barang (#'.$order[0]->no_order.')',
+            'amount' => $getAmount[0]->delivery_fee
+            ]);
+        Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+
+        return response()->json('Data Successfully updated', 200);
+    
+       }elseif($status == 7 && $method == 3){
+        DB::table('return')->insert(['id_orders' => $id]);
+        $debit = DB::table('wallet_transaction')
+        ->insert([
+            'wallet_id' => $wallet_id[0]->id,
+            'type' => 'debit',
+            'description' => 'Pengembalian Ongkir (#'.$order[0]->no_order.')',
+            'amount' => -$getAmount[0]->delivery_fee
+            ]);
+        Order::where('id',$id)
+        ->update([
+        'order_statuses_id' =>$status,    
+
+        ]);
+
+        return response()->json('Data Successfully updated', 200);
+    
+       }
+       elseif($status == 7 && $method == 4){
         DB::table('return')->insert(['id_orders' => $id]);
         Order::where('id',$id)
         ->update([
@@ -489,9 +560,11 @@ class OrderController extends Controller
             foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
                 $arr = array(
+                    'id' => intval($val->id),
                     'user_id' => intval($val->user_id),
                     'receiver_name' => $val->receiver_name,
-                    'tanggal_order' => date_format($date,"d-M-Y")
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'no_order' => $val->no_order,
                 );
                 array_push($data,$arr);
             }
@@ -680,7 +753,7 @@ class OrderController extends Controller
          if($status == 5 && $method == 1 ){
             $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
             $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
-            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
             $credit = DB::table('wallet_transaction')
                          ->insert([
                              'wallet_id' => $wallet_id[0]->id,
@@ -701,7 +774,7 @@ class OrderController extends Controller
          }elseif($status == 5 && $method == 2 ){
             $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
             $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
-            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
             $credit = DB::table('wallet_transaction')
                          ->insert([
                              'wallet_id' => $wallet_id[0]->id,
@@ -740,7 +813,7 @@ class OrderController extends Controller
          }elseif($status == 5 && $method == 4 ){
             $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
             $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
-            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
              $credit = DB::table('wallet_transaction')
              ->insert([
                  'wallet_id' => $wallet_id[0]->id,
@@ -1039,6 +1112,7 @@ public function ReturnOrderDetail($id)
 
     public function createOrder(Request $request)
     {
+        return $this->sendPickupNotif(3);
         $this->validate($request, [
             'weight' => 'required',
             'price' => 'required',
@@ -1046,7 +1120,6 @@ public function ReturnOrderDetail($id)
             'receiver_address' => 'required',
             'receiver_name' => 'required',
             'receiver_phone' => 'required'
-
         ]);
         
         if($request->input('user_id') == null){
@@ -1058,6 +1131,7 @@ public function ReturnOrderDetail($id)
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
         $district = DB::table('user_profiles')->where('user_id',$id)->first('district_id')->district_id;
+        $village = DB::table('user_profiles')->where('user_id',$id)->first('village_id')->village_id;
         $price = $request->input('price');
 
         //insert photo
@@ -1085,6 +1159,7 @@ public function ReturnOrderDetail($id)
         $deliv_address = DB::table('delivery_addresses')->insertGetId([
             'address' =>   $request->input('receiver_address'),
             'description' =>  $request->input('description_address'),
+            'city_id' =>  $request->input('city_id'),
             'district' =>  $request->input('district'),
             'village' =>  $request->input('village'),
             'latitude' => $request->input('latitude'),
@@ -1092,12 +1167,11 @@ public function ReturnOrderDetail($id)
         ]);
 
         $w = $request->input('weight');
-        $village = $request->input('village');
         $delivery_fee = $request->input('delivery_fee');
         //Check Customer
-        $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->get();
+        $checkCust = DB::table('pre-pickup-assigned-check')->where('user_id',$id)->where('district_id',$district)->get();
         //Assign Pickup Driver
-        if(count($checkCust) == 0 && $village === "null" ){
+        if(count($checkCust) == 0 && $village === null ){
             $getDriver = DB::select('
             SELECT
             user_id, 
@@ -1108,19 +1182,25 @@ public function ReturnOrderDetail($id)
             count_driver_order
             ON 
             drivers.user_id = count_driver_order.id
+            JOIN
+            users
+            ON
+            drivers.user_id = users.id
             WHERE
-            drivers.district_placement = '.$district.' 
+            drivers.district_placementt LIKE "%'.$district.'%" 
             AND
             coalesce(count, 0) < 25
             AND
             drivers.driver_category_id = 1
+            AND
+            online = 1
             ORDER BY
             count ASC
             LIMIT 1
-            ')[0]->user_id;
+            ');
             
         }
-        elseif(count($checkCust) == 0 && $village !== "null"){
+        elseif(count($checkCust) == 0 && $village !== null){
             $getDriver = DB::select('
                                 SELECT
                                 user_id, 
@@ -1131,25 +1211,39 @@ public function ReturnOrderDetail($id)
                                     count_driver_order
                                     ON 
                                         drivers.user_id = count_driver_order.id
+                                    JOIN
+                                    users
+                                    ON
+                                    drivers.user_id = users.id
                                 WHERE
-                                    drivers.district_placement = '.$district.' 
+                                drivers.district_placementt LIKE "%'.$district.'%" 
                                     AND
-                                drivers.village_placement LIKE "%'.$request->input('village').'%"
+                                drivers.village_placement LIKE "%'.$village.'%"
                                     AND
                                     coalesce(count, 0) < 25
                                     AND
                                     drivers.driver_category_id = 1
+                                    AND
+                                    online = 1
                                 ORDER BY
                                     count ASC
-                                LIMIT 1')[0]->user_id;
+                                LIMIT 1');
         }
         else
         {
             $getDriver = $checkCust[0]->driver_id_pickup;
         }
 
-        $driver =  $getDriver;
-
+        if (!empty($getDriver) && is_array($getDriver)){
+            $driver =  $getDriver[0]->user_id;
+            $this->sendPickupNotif($driver);
+            }elseif (!empty($getDriver) && !is_array($getDriver)){
+            $driver =  $getDriver;
+            $this->sendPickupNotif($driver);
+            }else{
+                $driver = 2;                
+            }
+        
         $order = new Order;
         $order->user_id = $id ;
         $order->no_order = $code;
@@ -1157,6 +1251,7 @@ public function ReturnOrderDetail($id)
         $order->driver_id_pickup = $driver;
         $order->delivery_address_id = $deliv_address;
         $order->payment_id = $payment_id;
+        $order->created_at = date('Y-m-d H:i:s',strtotime("+7 hours"));
         $order->category_id = 1;
         $order->pickup_status = 0;
         $order->save();
@@ -1189,7 +1284,15 @@ public function ReturnOrderDetail($id)
 
     public function customer()
     {
-        $data = DB::table('user_list')->where('role','customer')->get();
+
+        $g = DB::table('user_profiles')->leftJoin('special_region','special_region.village_id','user_profiles.village_id')->first()->pickup_fee;
+        // $get = DB::table('special_region')->where('village_id',$g)->first()->pickup_fee;
+        if($g !== null){
+            $d = DB::table('delivery_fee_list')->first()->price;
+        $add =intval($g) - intval($d);
+        }
+        $data = DB::table('user_list')->where('role','customer')->orWhere('role','admin')->get();
+        $special_city = DB::table('city')->join('service_area','city.id','service_area.city_id')->orderBy('nama')->get();
         $district = DB::table('districts')->get();
         $village = DB::table('villages')->get();
         $payment_methods = DB::table('payment_methods')->get();
@@ -1200,7 +1303,23 @@ public function ReturnOrderDetail($id)
                 'districts' =>$district,
                 'village' =>$village,
                 'methods' => $payment_methods,
-                'del_fee_list' => $del_fee_list
+                'del_fee_list' => $del_fee_list,
+                'special_city' => $special_city
+            ], 200);
+        return response()->json('Data Tidak Ditemukan');
+      }
+    }
+
+    public function region()
+    {
+        $special_city = DB::table('city')->join('service_area','city.id','service_area.city_id')->orderBy('nama')->get();
+        $district = DB::table('districts')->get();
+        $village = DB::table('villages')->get();
+        if(!empty($special_city)){
+            return response()->json([
+                'districts' =>$district,
+                'village' =>$village,
+                'special_city' => $special_city
             ], 200);
         }
         return response()->json('Data Tidak Ditemukan');
@@ -1217,19 +1336,51 @@ public function ReturnOrderDetail($id)
     public function finishReturn($id)
     {
         $bailout = intval(DB::table('orders')->join('payments','payments.id','orders.payment_id')->where('orders.id',$id)->get('bailout_id')[0]->bailout_id);
+        $method = intval(DB::table('orders')->join('payments','payments.id','orders.payment_id')->where('orders.id',$id)->get('payment_method_id')[0]->payment_method_id);
         DB::table('return')->where('id_orders',$id)->update(['status'=> 1]);
-        if($bailout == 1 ){
+        if($method == 1){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
         $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
-        $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE');
+        $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0');
         $credit = DB::table('wallet_transaction')
                          ->insert([
                              'wallet_id' => $wallet_id[0]->id,
                              'type' => 'credit',
-                             'description' => 'Retur Paket (#'.$order[0]->no_order.')',
+                             'description' => 'Harga Barang Retur(#'.$order[0]->no_order.')',
                              'amount' => $getAmount[0]->price 
                              ]);
+        $debit = DB::table('wallet_transaction')
+        ->insert([
+            'wallet_id' => $wallet_id[0]->id,
+            'type' => 'debit',
+            'description' => 'Ongkir Retur (#'.$order[0]->no_order.')',
+            'amount' => - $getAmount[0]->delivery_fee 
+            ]);
         }
+        elseif($method == 2){
+            $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
+            $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
+            $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0');
+            $credit = DB::table('wallet_transaction')
+                             ->insert([
+                                 'wallet_id' => $wallet_id[0]->id,
+                                 'type' => 'credit',
+                                 'description' => 'Harga Barang Retur(#'.$order[0]->no_order.')',
+                                 'amount' => $getAmount[0]->price 
+                                 ]);
+            }
+            elseif($method == 3){
+                $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
+                $order = DB::table('orders')->where('id',$id)->select('driver_id_deliver','no_order')->get();
+                $wallet_id = DB::select('SELECT id from wallet where user_id ='.intval($order[0]->driver_id_deliver).' AND CAST(created_at as date) = CURRENT_DATE AND status = 0');
+                $debit = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $wallet_id[0]->id,
+                    'type' => 'debit',
+                    'description' => 'Ongkir Retur (#'.$order[0]->no_order.')',
+                    'amount' => - $getAmount[0]->delivery_fee 
+                    ]);
+                }
         return response()->json('Data Updated Successfully');
     }
 
@@ -1253,7 +1404,7 @@ public function ReturnOrderDetail($id)
         if($status == 0 ){
         $getData = DB::table('list_orders_customer')
         ->where('user_id',$id)
-        ->where('pickup_status',$status)
+        ->where('order_statuses_id','<', 3)
         ->get();
         }elseif($status == 1 ){
             $getData = DB::select('select * from list_orders_customer where user_id = '.$id.' AND order_statuses_id = 4 AND pickup_status = 1');
@@ -1293,6 +1444,12 @@ public function ReturnOrderDetail($id)
     public function trackerDetailCustomer($id_order)
     {
         $id  = auth()->user()->id;
+        $admin = DB::table('users')->join('user_profiles','users.id','user_profiles.user_id')->where('role_id',2)->where('online',1)->first();
+        if($admin) {
+            $admin_phone = $admin->phone;
+        }else{
+            $admin_phone = null;
+        }
         $getData = DB::table('list_orders_customer')
         ->where('id',$id_order)
         ->get();
@@ -1333,7 +1490,9 @@ public function ReturnOrderDetail($id)
                     'driver_phone' => $val->driver_phone,
                     'driver_photo' => $val->driver_photo,
                     'category_id' => intval($val->category_id),
-                    'subtotal' => $val->delivery_fee + $val->price
+                    'subtotal' => $val->delivery_fee + $val->price,
+                    'admin_phone' => $admin_phone ,
+                    'deliver_driver' => $val->driver_deliver
                     );
                 array_push($data,$array);
             }
@@ -1352,6 +1511,7 @@ public function ReturnOrderDetail($id)
          $id = $request->input('id');
          $address_id = DB::table('orders')->where('id',$id)->get('delivery_address_id')[0]->delivery_address_id;
         DB::table('delivery_addresses')->where('id',$address_id)->update([
+                            'city_id' => $request->input('city_id'),
                             'district' => $request->input('district_id'),
                             'village' => $request->input('village_id'),
                             'address' => $request->input('address')
@@ -1361,4 +1521,38 @@ public function ReturnOrderDetail($id)
      
      
     }
+
+    public function sendPickupNotif($id_driver)
+    {   
+        $user = DB::table('users')->where('id',$id_driver)->get();
+        $dev_id = array();
+        foreach($user as $val){
+            array_push($dev_id,$val->device_id);
+        }
+        // return $dev_id;
+            $url = 'https://fcm.googleapis.com/fcm/send';
+            $dataArr = array('click_action' => 'FLUTTER_NOTIFICATION_CLICK','status'=>"done");
+            $notification = array('title' =>'Kate punya orderan baru nich, yuk cek list orderan', 'text' => 'halo broo', 'sound' => 'default', 'badge' => '1',);
+            
+            $arrayToSend = array('registration_ids' =>$dev_id , 'notification' => $notification, 'data' => $dataArr, 'priority'=>'high');
+            $fields = json_encode ($arrayToSend);
+            $headers = array (
+                'Authorization: key=' . "AAAAeKmGD5s:APA91bFifm5Mk9yerGV5pluH8kZHiVCGTP8zOjnbr9yX5STqztvq9jH-Q4CCXiUekl3cxVfD8A9LKxumGl73K9Hq9kcvqDowrXgxCBAoGjmxaiSyttMqoGCDwL8RxH4foyd9MSqQt4Eo",
+                'Content-Type: application/json'
+            );
+       
+            $ch = curl_init ();
+            curl_setopt ( $ch, CURLOPT_URL, $url );
+            curl_setopt ( $ch, CURLOPT_POST, true );
+            curl_setopt ( $ch, CURLOPT_HTTPHEADER, $headers );
+            curl_setopt ( $ch, CURLOPT_RETURNTRANSFER, true );
+            curl_setopt ( $ch, CURLOPT_POSTFIELDS, $fields );
+       
+            $result = curl_exec ( $ch );
+            //var_dump($result);
+            curl_close ( $ch );
+        
+        return $result;
+    }
+
 }

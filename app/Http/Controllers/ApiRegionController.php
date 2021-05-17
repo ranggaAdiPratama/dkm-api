@@ -13,9 +13,29 @@ class ApiRegionController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function getDistrict()
+    
+    public function getCity()
     {
-        $data = DB::table('districts')->get();
+        $data = DB::table('city')->join('service_area','city.id','service_area.city_id')->orderBy('nama')->get();
+
+        if(!empty($data)){
+        return response()->json([
+                   'data' => $data,
+                   'status' => 200
+                    ]);
+                }
+        return response()->json([
+            'data' => 'Data Not Found',
+            'status' => 400
+                ]);
+    }
+
+
+    public function getDistrict($id)
+    {
+        $data = DB::table('districts')
+        ->where('kabupaten_id',$id)
+        ->get();
 
         if(!empty($data)){
         return response()->json([

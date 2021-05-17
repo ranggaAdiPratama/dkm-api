@@ -76,33 +76,49 @@ class DriverController extends Controller
     public function driverList()
     {
         $getDriver = DB::table('driver_list')->get();
-        $district = DB::table('districts')->get();
-        $village = DB::table('villages')->get();
+        $special_city = DB::table('city')->join('service_area','city.id','service_area.city_id')->orderBy('nama')->get();
+        $district = DB::table('district')->get();
+        $village = DB::table('village')->get();
         $driver =[];
         if(!empty($getDriver)){
         foreach ($getDriver as $val) {
+            // village
             $d = str_replace(str_split('\\[]"'), '', $val->village_placement_id);
-            $e =explode(',',$d);
+            $e = explode(',',$d);
             $village_placement = array();
-            if($val->village_placement_id !== '[]'){
+            if($val->village_placement_id !== '[]' && is_array($e) || $val->village_placement_id !== null && is_array($e)){
             foreach ($e as $v){
-                $get = DB::table('village')->where('id',$v)->first('nama')->nama;     
-                array_push($village_placement,$get);    
+                $get = DB::table('village')->where('id',$v)->first('nama');
+                if(!empty($get)){
+                    array_push($village_placement,$get->nama);
+                }     
+                    
             }
             }
-          
+            $f = str_replace(str_split('\\[]"'), '', $val->district_placement_id);
+            $g = explode(',',$f);
+            $district_placement = array();
+            if($val->district_placement_id !== '[]' && is_array($g) || $val->district_placement_id !== null && is_array($g)){
+            foreach ($g as $i){
+                $name = DB::table('district')->where('id',$i)->first('nama');
+                if(!empty($name)){
+                array_push($district_placement,$name->nama);
+                }
+            }
+            }
             $arr = array(
            'id' => $val->id,
            'name' => $val->name,
            'email' => $val->email,
            'total_order' => $val->count,
            'category' => $val->category,
-           'district_placement' => $val->district_placement,
+           'district_placement' => $district_placement,
            'village_placement' => $village_placement,
            'driver_district' => $val->driver_district,
            'driver_village' => $val->driver_village,
            'phone' => $val->phone,
            'photo' => $val->photo,
+           'online' => $val->online,
        );
        array_push($driver,$arr);
     }
@@ -112,6 +128,7 @@ class DriverController extends Controller
         'driver' => $driver ,
         'district' =>$district,
         'village' =>$village,
+        'city' => $special_city
 
         ], 200);
     }
@@ -126,7 +143,7 @@ class DriverController extends Controller
             $d = str_replace(str_split('\\[]"'), '', $val->village_placement_id);
             $e =explode(',',$d);
             $village_placement = array();
-            if($val->village_placement_id !== null){
+            if($val->village_placement_id !== null && $val->village_placement_id !== '[]'){
             foreach ($e as $v){
                 $get = DB::table('village')->where('id',$v)->first('nama')->nama;     
                 array_push($village_placement,$get);
@@ -145,6 +162,7 @@ class DriverController extends Controller
            'driver_village' => $val->driver_village,
            'phone' => $val->phone,
            'photo' => $val->photo,
+           'online' => $val->online,
        );
        array_push($driver,$arr);
     }
@@ -165,6 +183,75 @@ class DriverController extends Controller
         $data = array();
         if(!empty($getData)){
             foreach($getData as $val){
+                $date = date_create($val->wallet_date);
+                if(intval($val->amount) !== 0 ){
+                    $amount = intval($val->amount);
+                }else{
+                    $amount = 0;
+                }
+                $arr = array(
+                    'wallet_id' => intval($val->id_wallet),
+                    'driver_name' => $val->name,
+                    'begin_balance' =>intval($val->begin_balance),
+                    'status' =>intval($val->status),
+                    'wallet_date' =>date_format($date, 'Y-m-d'),
+                    'amount' => $amount,
+                    'ending_balance'=> $amount + $val->begin_balance
+                );
+                
+                array_push($data,$arr);
+               
+            }
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Not Found', 204);
+    }
+
+    public function driverWalletFilter(Request $request)
+    {
+        $from = date_format(date_create($request->input('from')),'Y-m-d' );
+        $to = date_format(date_create($request->input('to')),'Y-m-d' );
+        $role = $request->input('role');
+        $getData = DB::select(
+                        '
+                        SELECT
+                        wallet.begin_balance, 
+                        sum(wallet_trans_view.amount) AS amount, 
+                        users.`name`, 
+                        wallet.user_id, 
+                        wallet.id AS id_wallet, 
+                        wallet.update_at AS wallet_date, 
+                        wallet_trans_view.created_at AS wallet_trans_date, 
+                        wallet.`status`
+                        FROM
+                        wallet
+                        LEFT JOIN
+                        wallet_trans_view
+                        ON 
+                            wallet.id = wallet_trans_view.wallet_id AND
+                            CAST(wallet_trans_view.created_at AS DATE) = CURRENT_DATE
+                        JOIN
+                        users
+                        ON 
+                            wallet.user_id = users.id
+                        WHERE
+                        CAST(wallet.update_at AS DATE) >= "'.$from.'"
+                        AND
+                        CAST(wallet.update_at AS DATE) <= "'.$to.'"
+                        AND
+                        users.role_id = '.$role.'
+                        GROUP BY
+                        wallet.user_id, 
+                        CAST(wallet_date AS DATE)
+                        ORDER BY
+                        users.`name` ASC 
+                                '
+                            );
+        $data = array();
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $date = date_create($val->wallet_date);
                 if(date_format(date_create($val->wallet_date),'d-M-Y' ) == date('d-M-Y') && date_format(date_create($val->wallet_trans_date),'d-M-Y' ) == date('d-M-Y')){
                     $amount = intval($val->amount);
                 }else{
@@ -174,6 +261,8 @@ class DriverController extends Controller
                     'wallet_id' => intval($val->id_wallet),
                     'driver_name' => $val->name,
                     'begin_balance' =>intval($val->begin_balance),
+                    'status' =>intval($val->status),
+                    'wallet_date' =>date_format($date, 'Y-m-d'),
                     'amount' => $amount,
                     'ending_balance'=> $amount + $val->begin_balance
                 );
@@ -219,7 +308,7 @@ class DriverController extends Controller
     public function driverWalletDetail($id)
     {
         //Cek Saldo Awal
-        $begin_balance_check = DB::select('SELECT begin_balance FROM wallet where CAST(update_at AS DATE) = CURRENT_DATE');
+        $begin_balance_check = DB::select('SELECT begin_balance FROM wallet where CAST(update_at AS DATE) = CURRENT_DATE AND id='.$id.' OR CAST(update_at AS DATE) < CURRENT_DATE AND id='.$id);
         // dd($begin_balance_check);
         $begin_balance = $begin_balance_check;
         $getData = DB::table('driver_wallet_detail')
@@ -271,15 +360,15 @@ class DriverController extends Controller
     {
         //Cek Saldo Awal
         $id  = auth()->user()->id;
-        $begin_balance_check = DB::select('SELECT begin_balance FROM wallet where CAST(update_at AS DATE) = CURRENT_DATE');
+        $begin_balance_check = DB::select('SELECT begin_balance FROM wallet where CAST(update_at AS DATE) = CURRENT_DATE AND user_id='.$id.' AND wallet.status = 0 OR CAST(update_at AS DATE) < CURRENT_DATE AND user_id='.$id.' AND wallet.status = 0');
         // dd($begin_balance_check);
         $begin_balance = $begin_balance_check;
         $getData = DB::table('driver_wallet_detail')
                     ->where('user_id',$id)
                     ->get();
-        $data = array();
-        $data_amount = array();
-        if(!empty($getData)){
+        if(count($getData) > 0 || count($begin_balance) > 0 ){
+            $data = array();
+            $data_amount = array();
             $ending_balance = [];
             foreach($getData as $val){
                 $date = date_create($val->created_at);
@@ -297,71 +386,125 @@ class DriverController extends Controller
                 array_replace(array($ending_balance),array($end));
                 array_push($data,$arr);
             }
-
             // return(array_sum($data_amount));
             return response()->json([
                 'begin_balance' => intval($begin_balance[0]->begin_balance),
                 'data' => $data,
                 'ending_balance' => $begin_balance[0]->begin_balance + array_sum($data_amount)
                 ]);
-        }
-        return response()->json('Data Not Found', 204);
+        }else {
+            return response()->json([
+                'begin_balance' => 0,
+                'data' => [],
+                'ending_balance' => 0
+                ]);
+        } 
     }
 
         
         public function driverPlacement (Request $request)
         {
             $req = $request->all();
-        try {
             foreach ($req as $val){
-                Driver::where('user_id',$val['id'])
-                ->update([
-                'district_placement' => $val['district_placement'],
-                'village_placement' => $val['village_placement'],
-                ]);
+            if($val['village_placement'] !== '[]'  ){
+                $save =   DB::table('drivers')->where('user_id',$val['id'])
+                    ->update([
+                    'district_placementt' => $val['district_placement'],
+                    'village_placement' => $val['village_placement'],
+                    ]);
+            }else{
+                    $save =   DB::table('drivers')->where('user_id',$val['id'])
+                    ->update([
+                    'district_placementt' => $val['district_placement'],
+                    ]);
             }
+        }
             
-        return response()->json('Data Updated Successfully', 200);
-            } catch (\Exception $e) {
+            if($save > 0){
+                return response()->json('Data Updated Successfully', 200);
+            }
             return response()->json('Data Updated Error', 409);
             }
+        
+
+        public function setSaldo(Request $request)
+        {
+            $req = $request->all();
+            date_default_timezone_set('Asia/Bangkok');
+            foreach ($req as $val){
+                $check_saldo = DB::table('driver_wallet')->where('user_id',intval($val['id']))->get();
+                if(count($check_saldo) > 0){
+                $update = DB::update('update wallet set begin_balance = '.intval($val["begin_balance"]).',update_at = "'.date("Y-m-d H:i:s").'" WHERE user_id = '.intval($val['id']).' AND CAST(created_at as date)= CURRENT_DATE');
+            
+           }else{
+                $create = DB::table('wallet')->insert(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s'),'user_id' => intval($val['id'])]);
+           }
+            }
+    
+            return response()->json('Data Updated Successfully', 200); 
+        }
+    
+        public function setSaldoExp(Request $request)
+        {
+            $req = $request->all();
+            date_default_timezone_set('Asia/Bangkok');
+            
+            foreach ($req as $val){
+                $check_saldo = DB::table('driver_wallet_exp')->where('user_id',intval($val['id']))->get();
+                if(count($check_saldo) > 0){
+                $update = DB::update('update wallet set begin_balance = '.intval($val["begin_balance"]).',update_at = "'.date("Y-m-d H:i:s").'" WHERE user_id = '.intval($val['id']).' AND CAST(created_at as date)= CURRENT_DATE');
+           }else{   
+                $create = DB::table('wallet')->insert(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s'),'user_id' => intval($val['id'])]);
+           }
+            }
+    
+            return response()->json('Data Updated Successfully', 200); 
         }
 
-    public function setSaldo(Request $request)
-    {
-        $req = $request->all();
-        date_default_timezone_set('Asia/Bangkok');
-        $check_saldo = DB::table('driver_wallet')->get();
-        if(count($check_saldo) > 0){
-        foreach ($req as $val){
-            $update = DB::update('update wallet set begin_balance = '.intval($val["begin_balance"]).',update_at = "'.date("Y-m-d H:i:s").'" WHERE user_id = '.intval($val['id']).' AND CAST(created_at as date)= CURRENT_DATE');
+        public function addSaldo(Request $request)
+        {
+            $id = $request->input('id');
+            $amount = $request->input('amount');
+            date_default_timezone_set('Asia/Bangkok');
+                // $credit = DB::update('update wallet set begin_balance = '.intval($new_beg_bal).',update_at = "'.date("Y-m-d H:i:s").'" WHERE id = '.intval($id).' AND CAST(created_at as date)= CURRENT_DATE');
+                $credit = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $id,
+                    'type' => 'credit',
+                    'description' => "Top Up",
+                    'amount' => $amount
+                    ]);
+                if($credit == 1) {
+                return response()->json('Data Updated Successfully', 200); 
+             }
+            
         }
-       }else{   
-        foreach ($req as $val){
-            $create = DB::table('wallet')->insert(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s'),'user_id' => intval($val['id'])]);
-        }
-       }
 
-        return response()->json('Data Updated Successfully', 200); 
+        public function addSaldoExp(Request $request)
+        {
+            $id = $request->input('id');
+            $amount = $request->input('amount');
+            date_default_timezone_set('Asia/Bangkok');
+                $credit = DB::table('wallet_transaction')
+                ->insert([
+                    'wallet_id' => $id,
+                    'type' => 'credit',
+                    'description' => "Top Up",
+                    'amount' => $amount
+                    ]);
+                if($credit == 1) {
+            return response()->json('Data Updated Successfully', 200); 
+        }
     }
 
-    public function setSaldoExp(Request $request)
+    public function pullBalance($id)
     {
-        $req = $request->all();
-        date_default_timezone_set('Asia/Bangkok');
-        $check_saldo = DB::table('driver_wallet_exp')->get();
-        if(count($check_saldo) > 0){
-        foreach ($req as $val){
-            $update = DB::update('update wallet set begin_balance = '.intval($val["begin_balance"]).',update_at = "'.date("Y-m-d H:i:s").'" WHERE user_id = '.intval($val['id']).' AND CAST(created_at as date)= CURRENT_DATE');
-        }
-       }else{   
-        foreach ($req as $val){
-            $create = DB::table('wallet')->insert(['begin_balance' => intval($val['begin_balance']),'update_at' => date('Y-m-d H:i:s'),'user_id' => intval($val['id'])]);
-        }
-       }
+        $update = DB::table('wallet')->where('id',$id)->update(['status'=> 1]);
 
-        return response()->json('Data Updated Successfully', 200); 
+        if($update > 0 ){
+            return response()->json('Data Updated Successfully');
+        }
+        return response()->json('Data update failed'); 
     }
-
 
 }

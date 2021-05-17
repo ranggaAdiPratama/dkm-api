@@ -17,6 +17,8 @@ Route::group(['prefix' => 'auth'], function () use ($router)
    Route::get('user', 'AuthController@me');
    Route::get('refresh', 'AuthController@refresh');
    Route::get('change-status/{id}', 'AuthController@changeStatus');
+   Route::post('change-password','AuthController@forgetPassword');
+   Route::post('device-id','AuthController@getDeviceId');
 });
 
  // Menu Dashboard
@@ -44,9 +46,15 @@ include 'customer.php';
 
 Route::get('/photo/{name}','AuthController@getPhoto');
 Route::get('/photo/product/{name}','AuthController@getPhotoProduct');
-Route::get('district-list','ApiRegionController@getDistrict');
+Route::get('city-list','ApiRegionController@getCity');
+Route::get('district-list/{id}','ApiRegionController@getDistrict');
 Route::get('villages-list/{id}','ApiRegionController@getVillage');
 Route::get('customer/','OrderController@customer');
+Route::get('region/','OrderController@region');
+
+Route::post('send/','MailController@mail');
+Route::get('/message', 'MessageController@sendMessage');
+Route::post('/message', 'MessageController@sendMessage');
 
 
 

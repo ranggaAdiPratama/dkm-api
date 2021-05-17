@@ -12,6 +12,7 @@ Route::group(['prefix' => 'driver-exp','as' => 'driver-exp','middleware' => ['au
     Route::get('/delivery','OrderExpController@deliveryList');
     Route::get('/delivery/order-list','OrderExpController@DeliveryOrderList');  
     Route::get('/delivery/order-detail/{id}','OrderExpController@deliveryShow');
+    Route::get('/pickup/order-detail/{id}','OrderExpController@pickupShow');
     // Route::get('/delivery/history','OrderExpController@deliveryHistory');  
     Route::get('/delivery/history','OrderExpController@deliveryHistoryOrderList');
     Route::post('/delivery/status','OrderExpController@deliveryStatus');

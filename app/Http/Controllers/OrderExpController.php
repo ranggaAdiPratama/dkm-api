@@ -130,7 +130,6 @@ class OrderExpController extends Controller
                             ->where('driver_id_deliver',$id_driver)
                             ->where('category_id', 2)
                             ->get();
-       
         // $getData = DB::table('pickup_detail_list')
         //                 ->where('driver_id_pickup', $id)
         //                 ->get();
@@ -198,7 +197,7 @@ class OrderExpController extends Controller
                       
                     
                 );
-                array_push($data,$arr);
+                array_push($data,$detailArr);
             }
 
             if(!empty($data)){
@@ -224,7 +223,6 @@ class OrderExpController extends Controller
             $detail_order = DB::table('delivery_detail_list') 
             ->where('id',$id)
             ->get();
-    
             $detailArr = array() ;
             $total_delivery_fee = array();
             $total_price = array();
@@ -256,6 +254,67 @@ class OrderExpController extends Controller
                 'sender_phone' => $val->sender_phone,
                 'sender_phone2' => $val->sender_phone2,
                 'sender_address' => $val->sender_address,
+                'subtotal' => $val->delivery_fee + $val->price
+                );
+       
+                array_push($detailArr,$array);
+            }
+            return response()->json([
+                'detail' => $detailArr[0],
+                'bailout' => $bailout,
+               
+            ], 200);
+
+    }
+
+    public function pickupShow($id)
+    {
+        
+            $getBailout = DB::table('bailout')->get();
+            $bailout = [];
+            foreach($getBailout as $val){
+                $a = array(
+                    'id' => intval($val->id),
+                    'cod_method' => $val->cod_method
+                ); 
+                array_push($bailout,$a);
+            }
+            $detail_order = DB::table('delivery_detail_list') 
+            ->where('id',$id)
+            ->get();
+            $detailArr = array() ;
+            $total_delivery_fee = array();
+            $total_price = array();
+            $total = array();
+            foreach ($detail_order as $val) {
+                $array = array(
+                'id_order' => intval($val->id),    
+                'no_order' => '#'.$val->no_order,
+                'delivery_fee' => intval($val->delivery_fee) ,
+                'name' => $val->name,
+                'price' => intval($val->price),
+                'description' => $val->description,
+                'weight' => intval($val->weight),
+                'volume' => intval($val->volume),
+                'photo' => $val->photo,
+                'receiver_name' => $val->receiver_name,
+                'receiver_phone' => $val->receiver_phone,
+                'receiver_phone2' => $val->receiver_phone2,
+                'id_method' => intval($val->id_method),
+                'method' => $val->method,
+                'status' => $val->status,
+                'id_status' => intval($val->order_statuses_id),
+                'deliv_address' => $val->address,
+                'receiver_district' => $val->receiver_district,
+                // 'desc_add' => $val->desc_add,
+                'latitude' => $val->latitude,
+                'longitude' => $val->longitude,
+                'sender_name' => $val->sender_name,
+                'sender_phone' => $val->sender_phone,
+                'sender_phone2' => $val->sender_phone2,
+                'sender_address' => $val->sender_address,
+                'sender_district' => $val->district,
+                'sender_village' => $val->village,
                 'subtotal' => $val->delivery_fee + $val->price
                 );
        
@@ -484,13 +543,13 @@ class OrderExpController extends Controller
                       
                     
                 );
-                array_push($data,$arr);
+                array_push($data,$detailArr);
                 
             }
             if(!empty($data)){
                 return response()->json(['data' => $data[0]], 200);
             }else{
-                return response()->json(['data' => 'Belum ada order'], 201);
+                return response()->json(['data' => $data], 201);
             }
             
         }
@@ -579,7 +638,7 @@ class OrderExpController extends Controller
                       
                     
                 );
-                array_push($data,$arr);
+                array_push($data,$detailArr);
             }
             if(!empty($data)){
             return response()->json(['data' => $data[0]], 200);
@@ -1113,27 +1172,27 @@ public function ReturnOrderDetail($id)
         $district = DB::table('orders')->join('delivery_addresses','orders.delivery_address_id','delivery_addresses.id')->where('orders.id',$id)->first('district')->district;
         $lastDriver = DB::table('orders')->where('orders.id',$id)->first('driver_id_deliver')->driver_id_deliver;
         $getDriver = DB::select('
-                                SELECT
-                                user_id, 
-                                coalesce(count, 0) as count
-                                FROM
-                                drivers
-                                LEFT JOIN
-                                count_driver_order
-                                ON 
-                                drivers.user_id = count_driver_order.id
-                                WHERE
-                                drivers.district_placement = '.$district.' 
-                                AND
-                                coalesce(count, 0) < 25
-                                AND
-                                drivers.driver_category_id = 2
-                                AND
-                                drivers.user_id != '.$lastDriver.'
-                                ORDER BY
-                                count ASC
-                                LIMIT 1
-                                ');
+                        SELECT
+                        user_id, 
+                        coalesce(count, 0) as count
+                        FROM
+                        drivers
+                        LEFT JOIN
+                        count_driver_order
+                        ON 
+                        drivers.user_id = count_driver_order.id
+                        WHERE
+                        drivers.district_placement = '.$district.' 
+                        AND
+                        coalesce(count, 0) < 25
+                        AND
+                        drivers.driver_category_id = 2
+                        AND
+                        drivers.user_id != '.$lastDriver.'
+                        ORDER BY
+                        count ASC
+                        LIMIT 1
+                        ');
         
         if(!empty($getDriver)){
             $updateOrder = DB::table('orders')->where('id',$id)->update(['driver_id_deliver' => $getDriver[0]->user_id]);
@@ -1234,6 +1293,7 @@ public function ReturnOrderDetail($id)
                     'driver_phone' => $val->driver_phone,
                     'driver_photo' => $val->driver_photo,
                     'category_id' => intval($val->category_id),
+                    'driver_delivery' => $val->driver_deliver,
                     'subtotal' => $val->delivery_fee + $val->price
                     );
                 array_push($data,$array);
