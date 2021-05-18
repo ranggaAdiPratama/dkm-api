@@ -1116,9 +1116,9 @@ class AdminOrderController extends Controller
                     'driver_name' => $order->driver_name
         );
         
-        $d = DB::table('driver_list')->where('district_placement',$order->receiver_district)->get();
+        $d = DB::table('driver_list')->join('users','users.id','driver_list.id')->where('users.online',1)->get();   
         $driver = array();
-        foreach($d as $val){
+        foreach($d as $val){    
             $arr = array(
                 'id' => intval($val->id),
                 'name' => $val->name
