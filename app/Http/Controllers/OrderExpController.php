@@ -79,7 +79,7 @@ class OrderExpController extends Controller
         $getOrder = DB::table('delivery_list')
                             ->where('driver_id_deliver',$id)
                             ->where('category_id', 2)
-                            ->where('pickup_status',1)
+                            // ->where('pickup_status',1)
                             ->get();
         // return $getOrder;
         $data = array();
@@ -466,7 +466,7 @@ class OrderExpController extends Controller
         $id_driver = auth()->user()->id;
         $getOrder = DB::table('delivery_list')
                             ->where('driver_id_deliver',$id_driver)
-                            ->where('pickup_status',1)
+                            // ->where('pickup_status',1)
                             ->get();
        
         // $getData = DB::table('pickup_detail_list')
@@ -480,6 +480,7 @@ class OrderExpController extends Controller
                 $detail_order = DB::table('delivery_detail_list') 
                                 ->where('driver_id_deliver', $id_driver)
                                 ->get();
+                // return $detail_order;
                 $detailArr = array() ;
                 $total_delivery_fee = array();
                 $total_price = array();
@@ -500,7 +501,7 @@ class OrderExpController extends Controller
                     'receiver_phone' => $v->receiver_phone,
                     'receiver_phone2' => $v->receiver_phone2,
                     'method' => $v->method,
-                    'id_method' => intval($val->id_method),
+                    'id_method' => intval($v->payment_method_id),
                     'status' => $v->status,
                     'deliv_address' => $v->address,
                     // 'desc_add' => $val->desc_add,
@@ -530,11 +531,11 @@ class OrderExpController extends Controller
                     'sender_phone' => $val->sender_phone,
                     'sender_phone2' => $val->sender_phone2,
                     'sender_address' => $val->sender_address,
-                    'sender_district' => $val->district_sender,
-                    'sender_village' => $val->village_sender,
+                    'sender_district' => $val->sender_district,
+                    'sender_village' => $val->sender_village,
                     'district' => $val->district,
-                    'latitude' => $val->latitude,
-                    'longitude' => $val->longitude,
+                    // 'latitude' => $val->latitude,
+                    // 'longitude' => $val->longitude,
                     'status' => $val->status,
                     'list_orders' => $detailArr,
                     'total_deliv_fee' => array_sum($total_delivery_fee),
@@ -836,7 +837,9 @@ public function ReturnOrderDetail($id)
         $numb = rand(0,999999);
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
-        $district = DB::table('user_profiles')->where('user_id',$id)->first('district_id')->district_id;
+        // $district = DB::table('user_profiles')->where('user_id',$id)->first('district_id')->district_id;
+        $pickup_address = DB::table('user_profiles')->where('user_id',$id)->where('status',1)->first('id')->id;
+        $district = DB::table('user_profiles')->where('user_id',$id)->where('status',1)->first('district_id')->district_id;
         $price = $request->input('price');
 
         //insert photo
@@ -935,6 +938,7 @@ public function ReturnOrderDetail($id)
         $order->order_statuses_id = 4 ;
         $order->driver_id_pickup = $driver;
         $order->driver_id_deliver = $driver;
+        $order->pickup_address = $pickup_address;
         $order->delivery_address_id = $deliv_address;
         $order->category_id = 2;
         $order->payment_id = $payment_id;

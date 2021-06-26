@@ -38,7 +38,7 @@ class Controller extends BaseController
         
         return response()->json([
             'token' => $token,
-            'expires_in' => Auth::factory()->getTTL() * 180,
+            'expires_in' => Auth::factory()->getTTL()*30,
             'users' => array(
                 'id' => intval($profile[0]->id),
                 'name' => $profile[0]->name,

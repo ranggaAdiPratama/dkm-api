@@ -2,6 +2,7 @@
 Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], function ()  {
     //order reguler
     Route::get('order/all','AdminOrderController@allReguler');
+    Route::post('order/all/date','AdminOrderController@allRegulerByDate');
     Route::get('order/pickup','AdminOrderController@index');
     Route::get('order/picked-up','AdminOrderController@finishPickupList');
     Route::get('order/delivery-assigned','AdminOrderController@readyToDeliveryList');
@@ -79,7 +80,7 @@ Route::group(['prefix' => 'admin','as' => 'admin' ,'middleware' =>['auth']], fun
     Route::get('user','AuthController@userList');
     Route::get('user/customer','AdminOrderController@userListCustomer');
     Route::get('user/area','AdminOrderController@area');
-
+    Route::get('counter','DashboardController@countCustomer');
     
     
 });

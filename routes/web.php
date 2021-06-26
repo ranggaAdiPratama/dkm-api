@@ -19,6 +19,8 @@ Route::group(['prefix' => 'auth'], function () use ($router)
    Route::get('change-status/{id}', 'AuthController@changeStatus');
    Route::post('change-password','AuthController@forgetPassword');
    Route::post('device-id','AuthController@getDeviceId');
+   
+
 });
 
  // Menu Dashboard
@@ -54,7 +56,14 @@ Route::get('region/','OrderController@region');
 
 Route::post('send/','MailController@mail');
 Route::get('/message', 'MessageController@sendMessage');
+Route::get('/get-app-version', 'AdminOrderController@appVersion');
+Route::post('/add-app-version', 'AuthController@addAppVersion');
 Route::post('/message', 'MessageController@sendMessage');
+Route::post('email-check','AuthController@emailCheck');
+Route::post('app-version', 'AuthController@verifyAppVersion');
+
+Route::get('/test/create-order/bulk/{q}', 'orderController@testCreateOrderBulk');
+
 
 
 

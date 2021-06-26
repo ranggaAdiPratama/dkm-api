@@ -4,6 +4,7 @@ Route::group(['prefix' => 'driver','as' => 'driver','middleware' => ['auth','rol
     Route::get('/pickup','OrderController@pickupList');
     Route::get('/pickup/history','OrderController@pickupHistory');
     Route::get('/pickup/history/{id}','OrderController@pickupHistoryOrderList');
+    // Route::get('/pickup/order-list/{id}','OrderController@pickupListByCust');
     Route::get('/pickup/order-list/{id}','OrderController@orderList');
     Route::get('/pickup/order-detail/{id}','OrderController@orderListDetail');
     Route::post('/pickup/status','OrderController@pickupStatus');

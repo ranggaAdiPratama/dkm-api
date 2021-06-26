@@ -7,5 +7,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Dashboard extends Model
 {
-    protected $table = 'menus'; 
+    protected $table = 'menus'  ; 
 }

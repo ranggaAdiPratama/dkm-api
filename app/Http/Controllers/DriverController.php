@@ -119,6 +119,7 @@ class DriverController extends Controller
            'phone' => $val->phone,
            'photo' => $val->photo,
            'online' => $val->online,
+           'app_version' => $val->app_version
        );
        array_push($driver,$arr);
     }

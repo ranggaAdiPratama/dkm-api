@@ -12,7 +12,7 @@ class AdminOrderController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role',['except' => ['show','sendNotif']]);
+        $this->middleware('role',['except' => ['show','sendNotif','appVersion']]);
     }
 
    //Order
@@ -51,8 +51,136 @@ class AdminOrderController extends Controller
 
     public function allReguler()
     {
-        $getData = DB::table('list_orders')->where('category_id',1)
-        ->get();
+        $getData = DB::select('
+        SELECT
+	`orders`.`id` AS `id`,
+	`orders`.`no_order` AS `no_order`,
+	`order_statuses`.`status` AS `order_status`,
+	`orders`.`created_at` AS `order_date`,
+	`orders`.`category_id` AS `category_id`,
+	`return`.`status` AS `return_status`,
+	`driver_queue`.`d_driver` AS `delivery_driver`,
+	`driver_queue`.`p_driver` AS `driver_name`,
+	`cust_receiver_add`.`receiver_district` AS `receiver_district`,
+	`cust_receiver_add`.`receiver_village` AS `receiver_village`,
+	`cust_receiver_add`.`receiver_address` AS `receiver_address`,
+    `cust_receiver_add`.`receiver_city` AS `receiver_city`,
+	`order_details`.`receiver` AS `receiver_name`,
+	`order_details`.`phone` AS `receiver_phone`,
+	`users`.`name` AS `client`,
+	`user_profiles`.`phone` AS `sender_phone`,
+	`user_profiles`.`address` AS `sender_address`,
+	`order_details`.`price` AS `price`,
+	`order_details`.`delivery_fee` AS `delivery_fee`,
+	`order_details`.`name` AS `name`,
+	`payment`.`payment_status` AS `payment_status`,
+	`payment`.`payment_method` AS `method`,
+	`payment`.`payment_method_id` AS `payment_method_id` 
+FROM
+	((((((((((
+									`orders`
+									    LEFT JOIN `order_statuses` ON ( `orders`.`order_statuses_id` = `order_statuses`.`id` ))
+                                    LEFT JOIN `users` ON ( `orders`.`user_id` = `users`.`id` ))
+								  LEFT JOIN `user_profiles` ON ( `orders`.`pickup_address` = `user_profiles`.`id` ))
+								LEFT JOIN `delivery_addresses` ON ( `orders`.`delivery_address_id` = `delivery_addresses`.`id` ))
+							LEFT JOIN `return` ON ( `orders`.`id` = `return`.`id_orders` ))
+						LEFT JOIN `driver_queue` ON ( `orders`.`id` = `driver_queue`.`id` ))
+					LEFT JOIN `cust_receiver_add` ON ( `orders`.`id` = `cust_receiver_add`.`id` ))
+				LEFT JOIN `order_details` ON ( `orders`.`id` = `order_details`.`orders_id` ))
+			LEFT JOIN `user_list` ON ( `orders`.`user_id` = `user_list`.`id` ))
+	LEFT JOIN `payment` ON ( `orders`.`payment_id` = `payment`.`payment_id` )) 
+WHERE
+	cast( `orders`.`created_at` AS date ) = curdate() AND
+    orders.category_id = 1
+GROUP BY orders.id
+ORDER BY
+	`orders`.`id` DESC
+        ');
+        $data = [];
+        if(!empty($getData)){
+            foreach($getData as $val){
+                $date = date_create($val->order_date); 
+                $arr = array(
+                    'id' => $val->id,
+                    'no_order' => '#'.intval($val->no_order),
+                    'client' => $val->client,
+                    'date' => date_format($date,'Y-m-d') ,
+                    'delivery_fee' => intval($val->delivery_fee),
+                    'order_status' => $val->order_status,
+                    'payment_status' => $val->payment_status,
+                    'payment_method' => $val->method,
+                    'payment_method_id' => $val->payment_method_id,
+                    'sender_address' => $val->sender_address,
+                    'sender_phone' => $val->sender_phone,
+                    'receiver_name' => $val->receiver_name,
+                    'receiver_phone' => $val->receiver_phone,
+                    'receiver_address' => $val->receiver_address,
+                    'receiver_district' => $val->receiver_district,
+                    'receiver_village' => $val->receiver_village,
+                    'price' => intval($val->price),
+                    'total' => $val->price + $val->delivery_fee,
+                    'driver_name' => $val->driver_name,
+                    'delivery_driver' => $val->delivery_driver,
+                    'return_status' => intval($val->return_status)
+                   
+                );
+                array_push($data,$arr);
+            }
+        }else{
+            return response()->json('Belum ada order', 404);
+        }
+        return response()->json(['data' => $data]);
+    }
+
+    public function allRegulerByDate(Request $request)
+    {
+        $date = $request->input('date');
+        $getData = DB::select('
+        SELECT
+	`orders`.`id` AS `id`,
+	`orders`.`no_order` AS `no_order`,
+	`order_statuses`.`status` AS `order_status`,
+	`order_details`.`delivery_fee` AS `delivery_fee`,
+	`users`.`name` AS `name`,
+	`orders`.`created_at` AS `order_date`,
+	`payment_methods`.`method` AS `method`,
+	`payment_status`.`status` AS `payment_status`,
+	`order_details`.`price` AS `price`,
+	`order_details`.`receiver` AS `receiver_name`,
+	`order_details`.`phone` AS `receiver_phone`,
+	`order_details`.`weight` AS `weight`,
+	`user_profiles`.`phone` AS `sender_phone`,
+	`user_profiles`.`address` AS `sender_address`,
+	`delivery_addresses`.`address` AS `receiver_address`,
+	`district`.`nama` AS `receiver_district`,
+	`u`.`name` AS `driver_name`,
+	`order_details`.`name` AS `product_name`,
+	`orders`.`category_id` AS `category_id`,
+	`ud`.`name` AS `delivery_driver`,
+	`village`.`nama` AS `receiver_village`,
+	`payments`.`payment_method_id` AS `payment_method_id`,
+	`return`.`status` AS `return_status` 
+FROM
+	(((((((((((((
+														`orders`
+														JOIN `order_details` ON ( `orders`.`id` = `order_details`.`orders_id` ))
+													JOIN `order_statuses` ON ( `orders`.`order_statuses_id` = `order_statuses`.`id` ))
+												LEFT JOIN `users` ON ( `orders`.`user_id` = `users`.`id` ))
+											LEFT JOIN `payments` ON ( `orders`.`payment_id` = `payments`.`id` ))
+										JOIN `payment_status` ON ( `payments`.`status` = `payment_status`.`id` ))
+									JOIN `payment_methods` ON ( `payments`.`payment_method_id` = `payment_methods`.`id` ))
+								LEFT JOIN `user_profiles` ON ( `users`.`id` = `user_profiles`.`user_id` ))
+							JOIN `delivery_addresses` ON ( `orders`.`delivery_address_id` = `delivery_addresses`.`id` ))
+						LEFT JOIN `district` ON ( `delivery_addresses`.`district` = `district`.`id` ))
+					LEFT `users` `u` ON ( `orders`.`driver_id_pickup` = `u`.`id` ))
+				LEFT JOIN `users` `ud` ON ( `orders`.`driver_id_deliver` = `ud`.`id` ))
+			LEFT JOIN `village` ON ( `delivery_addresses`.`village` = `village`.`id` ))
+	LEFT JOIN `return` ON ( `orders`.`id` = `return`.`id_orders` )) 
+WHERE 
+cast( `orders`.`created_at` AS date ) = "'.$date.'"
+ORDER BY	
+`orders`.`id` DESC
+        ');
         $data = [];
         if(!empty($getData)){
             foreach($getData as $val){
@@ -84,7 +212,7 @@ class AdminOrderController extends Controller
                 array_push($data,$arr);
             }
         }else{
-            return response()->json('Belum ada order', 404);
+            return response()->json('Belum ada order');
         }
         return response()->json(['data' => $data]);
     }
@@ -592,7 +720,13 @@ class AdminOrderController extends Controller
                      'pickup_at' => date('Y-m-d H:i:s')
                      ]);
             //Barang diambil dengan talangan & ongkir di tanggung pengirim            
-            }elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] == 1 ){
+            }elseif($val['status'] == 1){
+                Order::where('id',intval($val['id']))
+             ->update([
+                'order_statuses_id' =>$val['status']
+             ]);
+            }
+            elseif($val['status'] == 3 && $val['bailout'] == 1 && $val['method'] == 1 ){
             $getAmount = DB::table('order_details')->where('orders_id',$val['id'])->select('price','delivery_fee')->get();
             $user_id = DB::table('orders')->where('id',$val['id'])->select('driver_id_pickup','no_order')->get();
             $wallet_id = DB::select('select id from wallet where user_id = '.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE  AND status = 0 OR user_id ='.intval($user_id[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
@@ -865,16 +999,42 @@ class AdminOrderController extends Controller
 
     public function detailOrder($no_order)
     {
-        $data = DB::table('detail_orders')
-                    ->where('no_order',$no_order)    
-                    ->get();
+        $data = Order::select(
+            'orders.id',
+            'orders.no_order',
+            'orders.order_statuses_id',
+            'order_details.name',
+            'order_details.delivery_fee',
+            'order_details.price',
+            'order_details.weight',
+            'order_details.volume',
+            'order_details.photo',
+            'order_details.phone as receiver_phone',
+            'order_details.phone2 as receiver_phone2',
+            'order_details.description',
+            'users.name as client',
+        )
+        ->join('order_details','order_details.orders_id','orders.id')
+        ->join('users','users.id','orders.user_id')
+        ->where('orders.id',$no_order)
+        ->get();
 
-        if($data){
+
+        $data_driver = Order::select('up.name as driver_pickup_name','ud.name as driver_delivery_name')
+        ->leftjoin('users as up','orders.driver_id_pickup','up.id')
+        ->leftjoin('users as ud','orders.driver_id_deliver','ud.id')
+        ->where('orders.id',$no_order)
+        ->get();
+
+        $data_payment = Order::with('Payment')->get('payment_id');
+        return $data_payment;
+        if(count($data) > 0){
             return response()->json([
-                'data' => $data
+                'data' => $data,
+                'driver' => $data_driver
             ]);
         }
-        return response()->json('Data Not Found',401);
+        return response()->json('Data Not Found');
     }
 
     public function area()
@@ -1090,8 +1250,7 @@ class AdminOrderController extends Controller
 
     public function show($id)
     {
-        $order = DB::table('list_orders_pickedup')->where('id',$id)->first();
-        // return $order->deliver_driver_name;
+        $order = DB::table('list_orders_barcode')->where('id',$id)->first();
         if(!empty($order)){
         $date = date_create($order->order_date);    
         $data = array(
@@ -1116,9 +1275,9 @@ class AdminOrderController extends Controller
                     'driver_name' => $order->driver_name
         );
         
-        $d = DB::table('driver_list')->join('users','users.id','driver_list.id')->where('users.online',1)->get();   
+        $d = DB::table('driver_list')->join('users','users.id','driver_list.id')->where('users.online',1)->get();
         $driver = array();
-        foreach($d as $val){    
+        foreach($d as $val){
             $arr = array(
                 'id' => intval($val->id),
                 'name' => $val->name
@@ -1209,29 +1368,77 @@ class AdminOrderController extends Controller
 
     public function allExpress()
     {
-        $getData = DB::table('list_orders')->where('category_id',2)
-        ->get();
+        $getData = DB::select('
+        SELECT
+	`orders`.`id` AS `id`,
+	`orders`.`no_order` AS `no_order`,
+	`order_statuses`.`status` AS `order_status`,
+	`orders`.`created_at` AS `order_date`,
+	`orders`.`category_id` AS `category_id`,
+	`return`.`status` AS `return_status`,
+	`driver_queue`.`d_driver` AS `delivery_driver`,
+	`driver_queue`.`p_driver` AS `driver_name`,
+	`cust_receiver_add`.`receiver_district` AS `receiver_district`,
+	`cust_receiver_add`.`receiver_village` AS `receiver_village`,
+	`cust_receiver_add`.`receiver_address` AS `receiver_address`,
+    `cust_receiver_add`.`receiver_city` AS `receiver_city`,
+	`order_details`.`receiver` AS `receiver_name`,
+	`order_details`.`phone` AS `receiver_phone`,
+	`users`.`name` AS `client`,
+	`user_profiles`.`phone` AS `sender_phone`,
+	`user_profiles`.`address` AS `sender_address`,
+	`order_details`.`price` AS `price`,
+	`order_details`.`delivery_fee` AS `delivery_fee`,
+	`order_details`.`name` AS `name`,
+	`payment`.`payment_status` AS `payment_status`,
+	`payment`.`payment_method` AS `method`,
+	`payment`.`payment_method_id` AS `payment_method_id` 
+FROM
+	((((((((((
+									`orders`
+									    LEFT JOIN `order_statuses` ON ( `orders`.`order_statuses_id` = `order_statuses`.`id` ))
+                                    LEFT JOIN `users` ON ( `orders`.`user_id` = `users`.`id` ))
+								  LEFT JOIN `user_profiles` ON ( `orders`.`pickup_address` = `user_profiles`.`id` ))
+								LEFT JOIN `delivery_addresses` ON ( `orders`.`delivery_address_id` = `delivery_addresses`.`id` ))
+							LEFT JOIN `return` ON ( `orders`.`id` = `return`.`id_orders` ))
+						LEFT JOIN `driver_queue` ON ( `orders`.`id` = `driver_queue`.`id` ))
+					LEFT JOIN `cust_receiver_add` ON ( `orders`.`id` = `cust_receiver_add`.`id` ))
+				LEFT JOIN `order_details` ON ( `orders`.`id` = `order_details`.`orders_id` ))
+			LEFT JOIN `user_list` ON ( `orders`.`user_id` = `user_list`.`id` ))
+	LEFT JOIN `payment` ON ( `orders`.`payment_id` = `payment`.`payment_id` )) 
+WHERE
+	cast( `orders`.`created_at` AS date ) = curdate() AND
+    orders.category_id = 2
+GROUP BY orders.id
+ORDER BY
+	`orders`.`id` DESC
+        ');
         $data = [];
         if(!empty($getData)){
             foreach($getData as $val){
                 $date = date_create($val->order_date); 
                 $arr = array(
-                    'id' => $val->id,
+                    'id' => $val->id,   
                     'no_order' => '#'.intval($val->no_order),
-                    'client' => $val->name,
-                    'date' => date_format($date,'Y/m/d') ,
+                    'client' => $val->client,
+                    'date' => date_format($date,'Y-m-d H:i:s') ,
                     'delivery_fee' => intval($val->delivery_fee),
                     'order_status' => $val->order_status,
                     'payment_status' => $val->payment_status,
                     'payment_method' => $val->method,
+                    'payment_method_id' => $val->payment_method_id,
                     'sender_address' => $val->sender_address,
                     'sender_phone' => $val->sender_phone,
                     'receiver_name' => $val->receiver_name,
                     'receiver_phone' => $val->receiver_phone,
                     'receiver_address' => $val->receiver_address,
+                    'receiver_district' => $val->receiver_district,
+                    'receiver_village' => $val->receiver_village,
                     'price' => intval($val->price),
                     'total' => $val->price + $val->delivery_fee,
-                    'driver_name' => $val->driver_name
+                    'driver_name' => $val->driver_name,
+                    'delivery_driver' => $val->delivery_driver,
+                    'return_status' => intval($val->return_status)
                    
                 );
                 array_push($data,$arr);
@@ -2048,7 +2255,7 @@ class AdminOrderController extends Controller
         // return $dev_id;
             $url = 'https://fcm.googleapis.com/fcm/send';
             $dataArr = array('click_action' => 'FLUTTER_NOTIFICATION_CLICK','status'=>"done");
-            $notification = array('title' =>'Kate punya orderan baru nich, yuk cek list orderan', 'text' => 'halo broo', 'sound' => 'default', 'badge' => '1',);
+            $notification = array('title' =>'Ada orderan baru nich, yuk cek list orderan', 'text' => 'halo', 'sound' => 'default', 'badge' => '1',);
             
             $arrayToSend = array('registration_ids' =>$dev_id , 'notification' => $notification, 'data' => $dataArr, 'priority'=>'high');
             $fields = json_encode ($arrayToSend);
@@ -2069,6 +2276,17 @@ class AdminOrderController extends Controller
             curl_close ( $ch );
         
         return $result;
+    }
+
+    public function appVersion()
+    {
+        $data = DB::select('select * from app_version order by id DESC');
+
+        if($data){
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Tidak Ditemukan');
     }
 
 }

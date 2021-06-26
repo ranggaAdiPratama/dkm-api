@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Laravel\Lumen\Auth\Authorizable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use App\Models\Wallet;
+use App\Models\UserProfile;
+
+
 
 
 class User extends Model implements AuthenticatableContract, AuthorizableContract, JWTSubject
@@ -20,6 +23,7 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
      *
      * @var array
      */
+    protected $table = 'users';
     protected $fillable = [
         'username',
     ];

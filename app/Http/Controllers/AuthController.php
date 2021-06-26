@@ -14,7 +14,7 @@ class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login','register','getPhoto','getPhotoProduct','refresh','forgetPassword']]);
+        $this->middleware('auth:api', ['except' => ['login','register','emailCheck','getPhoto','getPhotoProduct','refresh','forgetPassword','addAppVersion']]);
     }
 
     /**
@@ -35,6 +35,9 @@ class AuthController extends Controller
             'role_id' =>'required',
             'phone' => 'required',
             'address' => 'required',
+            'city_id' => 'required',
+            'district_id' => 'required',
+            'village_id' => 'required',
         ]);
         if ($request->hasFile('photo')) 
         { 
@@ -112,6 +115,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
         
+        $is_deleted = DB::table('users')->where('email',$request->input('email'))->where('is_deleted',0)->get();
+        if(count($is_deleted) == 0 ){
+                return response()->json('Email not found');
+        }
         $credentials = $request->only(['email', 'password']);
 
         if (! $token = Auth::attempt($credentials)) {			
@@ -203,8 +210,8 @@ class AuthController extends Controller
 
     public function refresh()
     {   
-        $currentUser = Auth::user();
-        $newToken = auth()->refresh(true, true);
+        $newToken = auth()->refresh();
+        $currentUser = auth()->setToken($newToken)->user();
         return $this->respondWithToken($newToken, $currentUser);
     }
 
@@ -227,7 +234,9 @@ class AuthController extends Controller
     }
 
     public function userList()
-    {
+    {   
+        // $data = User::with('profile')->get();
+        // return $data;
         $data = DB::table('user_list')->get();
         if(!empty($data)){
             return response()->json(['data' => $data], 200);
@@ -281,7 +290,7 @@ class AuthController extends Controller
              $file = pathinfo($fileExtension, PATHINFO_FILENAME); 
              $extension = $request->file('photo')->getClientOriginalExtension();
              $fileStore = $file . '_' . time() . '.' . $extension; 
-             $img ='http://192.168.18.60:8000/photo/product'. base64_encode($fileStore);
+             $img ='http://192.168.0.112:8000/photo/product'. base64_encode($fileStore);
              $path = $request->file('photo')->storeAs('photos',$fileStore); 
          }
          try 
@@ -359,6 +368,16 @@ class AuthController extends Controller
       }
     }
 
+    public function emailCheck(Request $request)
+    {
+        $e = DB::select('select count(email) as e from users where email = "'.$request->input('email').'" ');
+        if($e[0]->e > 0){
+            return response()->json(['status_email' => '1']);
+        }else{
+            return response()->json(['status_email' => '2']);
+        }
+    }
+
     public function forgetPassword(Request $request)
     {
         $email = $request->input('email');
@@ -371,6 +390,43 @@ class AuthController extends Controller
         return response()->json('Data Update Failed');
     }
 
+    public function verifyAppVersion(Request $request)
+    {
+        $user_id = auth()->user()->id;
+        $version = $request->input('version');
+        $add = DB::table('users')->where('id',$user_id)->update(['app_version' => $version]);
+        $check = DB::select('select * from app_version order by id DESC limit 1');
+            if($check[0]->version !== $version && $check[0]->type == 1 ){
+                return response()->json([
+                    'status' => '1',
+                    'description' => 'Major Update'
+                    ]);
+            }elseif($check[0]->version !== $version && $check[0]->type == 2){
+                return response()->json([
+                    'status' => '2',
+                    'description' => 'Minor Update'
+                    ]);
+        }else {
+            return response()->json([
+                // 'status' => '0',
+                'description' => 'Up to date'
+            ],202);
+        }
+
+    }
+
+
+    public function addAppVersion(Request $request)
+    {
+        $d = DB::table('app_version')->insert([
+            'version' => $request->input('version'),
+            'type' => $request->input('type')
+            ]);
+        if($d){
+            return response()->json('Data created successfully');
+        }
+        return response()->json('Data create fail');
+    }
   
     
 }

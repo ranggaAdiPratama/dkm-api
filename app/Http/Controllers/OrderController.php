@@ -43,7 +43,7 @@ class OrderController extends Controller
             return response()->json($data);
 
         } catch (\Throwable $th) {
-            return response()->json("Maaf, Data tidak di temukan", 402);
+            return response()->json("Maaf, Data tidak di temukan");
         }
         
     }
@@ -51,7 +51,7 @@ class OrderController extends Controller
     public function pickupList()
     {
         $id  = auth()->user()->id;
-        $getOrder = DB::table('pickup_list')
+        $getOrder = DB::table('pickup_list_driver')
                             ->where('driver_id_pickup',$id)
                             ->get();
         // return $getOrder;
@@ -63,7 +63,8 @@ class OrderController extends Controller
                 $arr = array(
                     'user_id' => intval($val->user_id),
                     'sender_name' => $val->sender_name,
-                    'tanggal_order' => date_format($date,"d-M-Y")
+                    'tanggal_order' => date_format($date,"d-M-Y"),
+                    'no_order' => $val->no_order
                 );
                 array_push($data,$arr);
             }
@@ -74,68 +75,110 @@ class OrderController extends Controller
     public function orderList($id)
     {
         $id_driver = auth()->user()->id;
-        $getOrder = DB::table('pickup_list')
-                            ->where('driver_id_pickup',$id_driver)
-                            ->get();
-       
-     
+        $getOrder = DB::select('
+        SELECT DISTINCT
+        `orders`.`id` AS `id`,
+        `orders`.`no_order` AS `no_order`,
+        `order_details`.`delivery_fee` AS `delivery_fee`,
+        `orders`.`driver_id_pickup` AS `driver_id_pickup`,
+        `orders`.`created_at` AS `created_at`,
+        `order_details`.`receiver` AS `receiver`,
+        `order_details`.`photo`,
+        users.name as sender_name,
+        `user_profiles`.`address` AS `sender_address`,
+        `orders`.`user_id`,
+        `user_profiles`.`phone` AS `sender_phone`,
+        `village`.`nama` AS `village`,
+        `district`.`nama` AS `district`,
+        `payment_methods`.`id` AS `id_method`,
+        `user_profiles`.`phone2` AS `sender_phone2`,
+        `orders`.`category_id` AS `category_id` ,
+        orders.order_statuses_id as status
+
+                                                        
+                                FROM
+                                    ((((((((
+                                                                    `orders`
+                                                                    LEFT JOIN `order_details` ON ( `orders`.`id` = `order_details`.`orders_id` ))
+                                                                LEFT JOIN `payments` ON ( `orders`.`payment_id` = `payments`.`id` ))
+                                                            LEFT JOIN `payment_methods` ON ( `payments`.`payment_method_id` = `payment_methods`.`id` ))
+                                                        LEFT JOIN `order_statuses` ON ( `orders`.`order_statuses_id` = `order_statuses`.`id` ))
+                                                    LEFT JOIN `users` ON ( `orders`.`user_id` = `users`.`id` ))
+                                                JOIN `user_profiles` ON ( `orders`.`pickup_address` = `user_profiles`.`id` ))
+                                        LEFT JOIN `district` ON ( user_profiles.district_id = `district`.`id` ))
+                                    LEFT JOIN `village` ON ( user_profiles.village_id = `village`.`id` )) 
+                                    
+                                WHERE
+                                    `orders`.`order_statuses_id` < 3 
+                                    AND `orders`.`pickup_status` NOT LIKE 1
+                                GROUP BY
+                                    `orders`.`user_id`
+                                ORDER BY
+                                    orders.id DESC
+        ');
         $data = array();
-        
+        // return $getOrder;   
         if (!empty($getOrder)){
-            foreach ($getOrder as $val) {
+            foreach ($getOrder as $val) {   
                 $date = date_create($val->created_at);
                 $detail_order = DB::table('pickup_detail_list') 
                                 ->where('driver_id_pickup', $id_driver)
                                 ->where('user_id',$id)
                                 ->get();
+                // return $detail_order;
                 $detailArr = array() ;
                 $total_delivery_fee = array();
                 $total_price = array();
                 $total = array();
-            if(!empty($detail_order)){
-                foreach ($detail_order as $val) {
+             if(!empty($detail_order)){
+                foreach ($detail_order as $v) {
+                    if($val->photo == null){
+                        $photo = "/photo/product/bm8tdGh1bWJuYWlsXzE2MTQwNTIwNjMuanBn";
+                    }else{
+                        $photo = $v->photo;
+                    }
                     $array = array(
-                    'id_order' => intval($val->id),    
-                    'no_order' => '#'.$val->no_order,
-                    'delivery_fee' => intval($val->delivery_fee) ,
-                    'name' => $val->name,
-                    'price' => intval($val->price),
-                    'description' => $val->description,
-                    'weight' => intval($val->weight),
-                    'volume' => intval($val->volume),
-                    'photo' => $val->photo,
-                    'receiver_name' => $val->receiver,
-                    'receiver_phone' => $val->phone,
-                    'receiver_phone2' => $val->receiver_phone2,
-                    'method' => $val->method,
-                    'id_method' => intval($val->id_method),
-                    'status' => $val->status,
-                    'deliv_address' => $val->address,
+                    'id_order' => intval($v->id),    
+                    'no_order' => '#'.$v->no_order,
+                    'delivery_fee' => intval($v->delivery_fee) ,
+                    'name' => $v->name,
+                    'price' => intval($v->price),
+                    // 'description' => $val->description,
+                    // 'weight' => intval($val->weight),
+                    // 'volume' => intval($val->volume),
+                    'photo' => $photo,
+                    'receiver_name' => $v->receiver,
+                    // 'receiver_phone' => $val->phone,
+                    // 'receiver_phone2' => $val->receiver_phone2,
+                    // 'method' => $val->method,
+                    'id_method' => intval($v->id_method),
+                    // 'status' => $val->status,
+                    // 'deliv_address' => $val->address,
                     // 'desc_add' => $val->desc_add,
-                    'latitude' => $val->latitude,
-                    'longitude' => $val->longitude,
+                    // 'latitude' => $val->latitude,
+                    // 'longitude' => $val->longitude,
                     // 'sender_name' => $val->sender_name,
                     // 'sender_phone' => $val->sender_phone,
-                    'subtotal' => $val->delivery_fee + $val->price
+                    'subtotal' => $v->delivery_fee + $v->price
                     );
-                    if($val->id_method == 1 || $val->id_method == 2){
+                    if($v->id_method == 1 || $v->id_method == 2){
                         array_push($total,$array['subtotal']);
                     }else{
                         array_push($total,array('subtotal' => 0));
                     }
-                    if($val->id_method == 1 || $val->id_method == 3){
+                    if($v->id_method == 1 || $v->id_method == 3){
                         array_push($total_delivery_fee,$array['delivery_fee']);
                     }else{
                         array_push($total_delivery_fee,array('delivery_fee' => 0));
                     }
-                    if($val->id_method == 1 || $val->id_method == 3){
+                    if($v->id_method == 1 || $v->id_method == 2){
                         array_push($total_price,$array['price']);
                     }else{
                         array_push($total_price,array('price' => 0));
                     }
                     array_push($detailArr,$array);
                 }
-            }
+                }
                 $arr = array(
                     'user_id' => intval($val->user_id),
                     'sender_name' => $val->sender_name,
@@ -145,8 +188,6 @@ class OrderController extends Controller
                     'sender_address' => $val->sender_address,
                     'district' => $val->district,
                     'village' => $val->village,
-                    'latitude' => $val->latitude,
-                    'longitude' => $val->longitude,
                     'status' => $val->status,
                     'list_orders' => $detailArr,
                     'total_deliv_fee' => array_sum($total_delivery_fee),
@@ -157,9 +198,10 @@ class OrderController extends Controller
                 );
                 array_push($data,$arr);
             }
+            return response()->json(['data' => $data[0]], 200);
         }
 
-        return response()->json(['data' => $data[0]], 200);
+        return response()->json(['data' => 'Data Empty']);
         }
 
     public function orderListDetail($id)
@@ -182,20 +224,25 @@ class OrderController extends Controller
         $total_price = array();
         $total = array();
         foreach ($detail_order as $val) {
+            if($val->photo == null){
+                $photo = "/photo/product/bm8tdGh1bWJuYWlsXzE2MTQwNTIwNjMuanBn";
+            }else{
+                $photo = $val->photo;
+            }
             $array = array(
             'id_order' => intval($val->id),    
             'no_order' => '#'.$val->no_order,
             'delivery_fee' => intval($val->delivery_fee) ,
-            'name' => $val->name,
+            'name' => $val->name !== null ? $val->name : "empty",
             'price' => intval($val->price),
-            'description' => $val->description,
+            'description' => $val->description !== null ? $val->description : "empty",
             'weight' => intval($val->weight),
             'volume' => intval($val->volume),
-            'photo' => $val->photo,
-            'receiver_name' => $val->receiver,
-            'receiver_phone' => $val->phone,
-            'receiver_phone2' => $val->receiver_phone2,
-            'id_method' => intval($val->id_method),
+            'photo' => $photo,
+            'receiver_name' => $val->receiver !== null ? $val->receiver : "empty" ,
+            'receiver_phone' => $val->phone !== null ? $val->phone : "empty",
+            'receiver_phone2' => $val->receiver_phone2 !== null ? $val->phone2 : "empty",
+            'id_method' => intval($val->id_method), 
             'method' => $val->method,
             'status' => $val->status,
             'id_status' => intval($val->order_statuses_id),
@@ -262,6 +309,7 @@ class OrderController extends Controller
         //Barang diambil dengan talangan & ongkir di tanggung penerima
        } elseif($status == 3 && $bailout == 1 && $method == 2){
         $getAmount = DB::table('order_details')->where('orders_id',$id)->select('price','delivery_fee')->get();
+        return $getAmount;
         $order = DB::table('orders')->where('id',$id)->select('driver_id_pickup','no_order')->get();
         $wallet_id = DB::select('select id from wallet where user_id = '.intval($order[0]->driver_id_pickup).' AND CAST(created_at as DATE) = CURRENT_DATE AND status = 0 OR user_id ='.intval($order[0]->driver_id_pickup).' AND CAST(created_at as date) < CURRENT_DATE AND status = 0');
         $debit = DB::table('wallet_transaction')
@@ -550,12 +598,27 @@ class OrderController extends Controller
     public function deliveryList()
     {
         $id  = auth()->user()->id;
-        $getOrder = DB::table('delivery_list')
-                            ->where('driver_id_deliver',$id)
-                            ->get();
+        $getOrder = DB::select('
+        SELECT
+            `users`.`id` AS `user_id`,
+            `orders`.`created_at` AS `created_at`,
+            `orders`.`driver_id_deliver` AS `driver_id_deliver`,
+            `orders`.`no_order` AS `no_order`,
+            `orders`.`id` AS `id`,
+            `order_details`.`receiver` AS `receiver_name` 
+        FROM
+            ((
+                    `orders`
+                    JOIN `users` ON ( `orders`.`user_id` = `users`.`id` ))
+            LEFT JOIN `order_details` ON ( `orders`.`id` = `order_details`.`orders_id` )) 
+        WHERE
+            `orders`.`order_statuses_id` = 4 AND
+            driver_id_deliver = '.$id.'
+        ORDER BY
+            `orders`.`id` DESC  
+        ');
         // return $getOrder;
         $data = array();
-        
         if (!empty($getOrder)){
             foreach ($getOrder as $val) {
                 $date = date_create($val->created_at);
@@ -1112,7 +1175,6 @@ public function ReturnOrderDetail($id)
 
     public function createOrder(Request $request)
     {
-        return $this->sendPickupNotif(3);
         $this->validate($request, [
             'weight' => 'required',
             'price' => 'required',
@@ -1130,8 +1192,9 @@ public function ReturnOrderDetail($id)
         $numb = rand(0,999999);
         $date = str_shuffle(date('dY'));
         $code = substr($numb + $date, 0, 6);
-        $district = DB::table('user_profiles')->where('user_id',$id)->first('district_id')->district_id;
-        $village = DB::table('user_profiles')->where('user_id',$id)->first('village_id')->village_id;
+        $pickup_address = DB::table('user_profiles')->where('user_id',$id)->where('status',1)->first('id')->id;
+        $district = DB::table('user_profiles')->where('user_id',$id)->where('status',1)->first('district_id')->district_id;
+        $village = DB::table('user_profiles')->where('user_id',$id)->where('status',1)->first('village_id')->village_id;
         $price = $request->input('price');
 
         //insert photo
@@ -1250,6 +1313,7 @@ public function ReturnOrderDetail($id)
         $order->order_statuses_id = 1 ;
         $order->driver_id_pickup = $driver;
         $order->delivery_address_id = $deliv_address;
+        $order->pickup_address = $pickup_address;
         $order->payment_id = $payment_id;
         $order->created_at = date('Y-m-d H:i:s',strtotime("+7 hours"));
         $order->category_id = 1;
@@ -1407,7 +1471,7 @@ public function ReturnOrderDetail($id)
         ->where('order_statuses_id','<', 3)
         ->get();
         }elseif($status == 1 ){
-            $getData = DB::select('select * from list_orders_customer where user_id = '.$id.' AND order_statuses_id = 4 AND pickup_status = 1');
+            $getData = DB::select('select * from list_orders_customer where user_id = '.$id.' AND order_statuses_id = 4 OR user_id = '.$id.' AND order_statuses_id = 3');
             }else{
         $getData = DB::table('list_orders_customer')
         ->where('user_id',$id)
@@ -1553,6 +1617,198 @@ public function ReturnOrderDetail($id)
             curl_close ( $ch );
         
         return $result;
+    }
+
+
+    public function testCreateOrderBulk($q)
+    {
+      $data = DB::table('list_orders')->take($q)->get();
+      if($data){
+          foreach ($data as $val ){
+              
+          }
+      }
+    }
+
+    public function getAddress()
+    {
+        $id = auth()->user()->id;
+        $data = DB:: select('
+          SELECT
+          user_profiles.id, 
+          CONVERT(users.name USING utf8) AS name,
+          user_profiles.user_id, 
+          city.nama as city, 
+          district.nama as district, 
+          village.nama as village,
+          user_profiles.is_user_profiles,
+        CONVERT(user_profiles.address USING utf8) AS address,
+          CONVERT(user_profiles.phone USING utf8) AS phone,
+          CONVERT(user_profiles.status USING utf8) AS status
+      FROM
+          user_profiles
+          
+          JOIN users ON users.id = user_profiles.user_id
+					JOIN district ON user_profiles.district_id = district.id
+			    JOIN village ON user_profiles.village_id = village.id
+					JOIN city ON city.id = user_profiles.city_id
+        where user_id = '.$id.'
+        ORDER BY status DESC
+        ');
+
+        if(count($data) > 0){
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Not Found');
+    }
+
+    public function getAddressActive()
+    {
+        $id = auth()->user()->id;
+        $data = DB:: select('
+          SELECT
+          user_profiles.id, 
+          CONVERT(users.name USING utf8) AS name,
+          user_profiles.user_id, 
+          city.nama as city, 
+          district.nama as district, 
+          village.nama as village,
+          user_profiles.is_user_profiles,
+        CONVERT(user_profiles.address USING utf8) AS address,
+          CONVERT(user_profiles.phone USING utf8) AS phone,
+          CONVERT(user_profiles.status USING utf8) AS status
+      FROM
+          user_profiles
+          
+          JOIN users ON users.id = user_profiles.user_id
+					JOIN district ON user_profiles.district_id = district.id
+			    JOIN village ON user_profiles.village_id = village.id
+					JOIN city ON city.id = user_profiles.city_id
+        where user_id = '.$id.' AND
+        status = 1
+        ');
+
+        if(count($data) > 0){
+            return response()->json(['data' => $data[0]]);
+        }
+
+        return response()->json('Data Not Found');
+    }
+
+    public function addPickupAddress(Request $request)
+    {
+        $this->validate($request, [
+            'city_id' => 'required',
+            'district' => 'required',
+            'village' => 'required',
+            'address' => 'required',
+        ]);
+        $id = auth()->user()->id;
+        $create = DB::table('user_profiles')->insert([
+            'user_id' => $id,
+            'city_id' =>  $request->input('city_id'),
+            'village_id' =>  $request->input('village'),
+            'district_id' =>  $request->input('district'),
+            'address' =>   $request->input('address'),
+            'phone' =>  $request->input('phone'),
+            'status' =>  0
+        ]);
+
+        if($create){
+            return response()->json('data created successfully');
+        }
+            return response()->json('data create failed');
+    }
+
+    public function updatePickupAddress(Request $request)
+    {
+        $id = $request->input('id');//id pickup address
+        $update = DB::table('user_profiles')->where('id',$id)->update([
+            'city_id' =>  $request->input('city_id'),
+            'village_id' =>  $request->input('village'),
+            'district_id' =>  $request->input('district'),
+            'address' =>   $request->input('address'),
+            'phone' =>  $request->input('phone')
+        ]); 
+        if($update){
+            return response()->json('data updated successfully');
+        }
+            return response()->json('data update failed');
+    }
+
+    public function deletePickupAddress($id)
+    {
+        $delete = DB::table('user_profiles')->where('id',$id)->delete();
+        if($delete){
+            return response()->json('data delete successfully');
+        }
+
+        return response()->json('data delete failed');
+    }
+
+    public function getPickupAddressById($id)
+    {
+        $data = DB:: select('
+        SELECT
+        CONVERT(users.name USING utf8) AS name,
+          pickup_addresses.user_id, 
+          pickup_addresses.city_id, 
+          pickup_addresses.district, 
+          pickup_addresses.village, 
+          CONVERT(pickup_addresses.address USING utf8) AS address,
+          CONVERT(pickup_addresses.phone USING utf8) AS phone,
+          CONVERT(pickup_addresses.status USING utf8) AS status
+      FROM
+          pickup_addresses
+      
+      JOIN users ON users.id = pickup_addresses.user_id
+      where pickup_addresses.id = '.$id.'
+        ');
+
+        if(count($data) > 0){
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Not Found');
+
+    }
+
+    public function getAddressById($id)
+    {
+        $data = DB:: select('
+        SELECT
+          CONVERT(users.name USING utf8) AS name,
+          user_profiles.user_id, 
+          user_profiles.city_id, 
+          user_profiles.district_id, 
+          user_profiles.village_id,
+        CONVERT(user_profiles.address USING utf8) AS address,
+          CONVERT(user_profiles.phone USING utf8) AS phone,
+          CONVERT(user_profiles.status USING utf8) AS status
+      FROM
+          user_profiles
+          
+          JOIN users ON users.id = user_profiles.user_id
+          where user_id = '.$id.'
+        ');
+
+        if(count($data) > 0){
+            return response()->json(['data' => $data]);
+        }
+
+        return response()->json('Data Not Found');
+
+    }
+
+
+    public function changePickupAddress(Request $request)
+    {
+        $user_id = auth()->user()->id;
+        $id = $request->input('id');
+        $up = DB::table('user_profiles')->where('user_id',$user_id)->update(['status' => 0]);
+        $update = DB::table('user_profiles')->where('id',$id)->update(['status' => 1]);
+        return response()->json('data updated successfully');
     }
 
 }
