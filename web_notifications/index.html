@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DKM-Notification.io</title>
+    <link rel="icon" href="https://daengkurir.online/admin/favicon.ico" type="image/gif" sizes="16x16">
+    <meta name="viewport" content="width=device-width">
+    <style>
+        body{
+            width: 100%;
+            height:100%;
+        }
+    </style>
+</head>
+<body >
+    <h1>Notification API DKM 1.0</h1>
+    <table width="100%" style="background-color: #0066ff;color: white;">
+        <tr width="75%">
+         <td>
+          <h2>Jumlah Orderan yang masuk ke Admin : <span id="noti_number"></span></h2>
+          <h5 id='get_cookie' style="display:none" ></h5>
+         </td>
+        
+        </tr>
+       </table>
+        <!--<button onclick="playSound()">asdas</button> -->
+    <p id="output"></p>
+    
+    <script>
+        //Notification objects have a close() method. SOME browser automatically close them.
+        //Notification Events - click, error, close, show
+        if( 'Notification' in window){
+            
+            if (Notification.permission === 'granted') {
+                // If it's okay let's create a notification
+                // doNotify();
+                loadDoc() 
+            }else{
+                //notification == denied
+                Notification.requestPermission()
+                    .then(function(result) {
+                        console.log(result);  //granted || denied
+                        if( Notification.permission == 'granted'){ 
+                            // doNotify();
+                            loadDoc() 
+                        }
+                    })
+                    .catch( (err) => {
+                        console.log(err);
+                    });
+            }
+        
+        }
+        
+        function doNotify(){
+            let title = "Hallo Admin !";
+            let t = Date.now() + 120000;    //2 mins in future
+            let options = {
+                body: 'Ada Orderan Untuk Admin nih !',
+                data: {prop1:123, prop2:"Admin"},
+                lang: 'en-CA',
+                icon: 'https://daengkurir.online/wp-content/uploads/2021/08/cropped-dkm-logo.png',
+                timestamp: t,
+                vibrate: [100, 200, 100]
+            }
+            let n = new Notification(title, options);
+
+            n.addEventListener('show', function(ev){
+                // console.log('SHOW', ev.currentTarget.data);
+            });
+            n.addEventListener('close', function(ev){
+            //    console.log('CLOSE', ev.currentTarget.body); 
+            });
+            n.onclick = (e) => {
+                // window.location.href = "https://daengkurir.online/test/admin_dummy/#/orders/express/";
+                window.open('https://daengkurir.online/test/admin_dummy/#/orders/express/', '_blank');
+            }
+            setTimeout( n.close.bind(n), 5000); //close notification after 3 seconds
+        }
+        /*************
+        Note about actions param - used with webworkers/serviceworkers
+        actions: [
+           {action: 'mail', title: 'e-mail', icon: './img/envelope-closed-lg.png'},
+           {action: 'blastoff', title: 'Blastoff', icon: './img/rocket-lg.png'}]
+       *********************/
+      
+    </script>
+    <script type="text/javascript">
+        function loadDoc() {
+         
+       
+         setInterval(function(){
+       
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+           if (this.readyState == 4 && this.status == 200) {
+            document.getElementById("noti_number").innerHTML = this.responseText;
+            checkCookie();
+           }
+          };
+          xhttp.open("GET", "https://daengkurir.online/test/api_dummy/getCountAdminOrder", true);
+          xhttp.send();
+       
+         },1000);
+       
+       
+        }
+        loadDoc();
+       </script>
+       <script>
+        function setCookie(cname,cvalue,exdays) {
+          const d = new Date();
+          d.setTime(d.getTime() + (exdays*24*60*60*1000));
+          let expires = "expires=" + d.toGMTString();
+          document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+        }
+        
+        function getCookie(cname) {
+          let name = cname + "=";
+          let decodedCookie = decodeURIComponent(document.cookie);
+          let ca = decodedCookie.split(';');
+          for(let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') {
+              c = c.substring(1);
+            }
+            if (c.indexOf(name) == 0) {
+              return c.substring(name.length, c.length);
+            }
+          }
+          return "";
+        }
+        
+        function playSound()
+        {
+            var audio = new Audio('sound.ogg');
+            audio.play();
+        //    alert('play');
+        }
+
+        function checkCookie() {
+          let user = getCookie("counting");
+          if (user != "") {
+            // alert("jmlh order " + user);
+            document.getElementById("get_cookie").innerHTML = user;
+            let count = document.getElementById("noti_number").innerHTML;
+            if (user != count){
+                    doNotify();
+                    playSound();
+                    setCookie("counting", count, 30);
+                }
+          } else {
+            //  user = prompt("Please enter your name:","");
+             let order = document.getElementById("noti_number").innerHTML;
+             if (order != "" && order != null) {
+               setCookie("counting", order, 30);
+             }
+                
+          }
+        }
+       
+        </script>
+    <script>
+    if (document.addEventListener) {
+        document.addEventListener('contextmenu', function(e) {
+            // alert("You've tried to open context menu"); //here you draw your own menu
+            e.preventDefault();
+        }, false);
+        } else {
+        document.attachEvent('oncontextmenu', function() {
+            // alert("You've tried to open context menu");
+            window.event.returnValue = false;
+        });
+    }
+     document.onkeydown = function(e) {
+            if(event.keyCode == 123) {
+                return false;
+            }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) {
+                return false;
+            }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) {
+                return false;
+            }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) {
+                return false;
+            }
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) {
+                return false;
+            }
+            }
+</script>    
+</body>
+
+</html>
